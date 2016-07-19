@@ -1,5 +1,5 @@
 #!/bin/bash
-ssh mhs '
+ssh mhs-deploy '
 ssh hermes "
 cd /var/www/meerkat_hermes;
 sudo git checkout master;
