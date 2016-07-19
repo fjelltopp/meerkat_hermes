@@ -13,7 +13,7 @@ def require_api_key(f):
 
 
         if request.data:
-           key = json.loads(request.data.decode('UTF-8')).get("api_key", "")
+           key = json.loads(request.data.decode("UTF-8")).get("api_key", "")
         else:
            key = request.args.get("api_key", "")
 
