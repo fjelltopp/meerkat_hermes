@@ -3,6 +3,7 @@ from flask import abort, request
 from functools import wraps
 import json
 
+
 def require_api_key(f):
     """
     @param f: flask function
@@ -11,20 +12,23 @@ def require_api_key(f):
     @wraps(f)
     def decorated(*args, **kwargs):
 
-        app.logger.warning( request.data )
-        app.logger.warning( request.data.decode( "UTF-8" ) )
-        app.logger.warning( json.loads(request.data.decode( "UTF-8" )) )
-        if request.data:
-           key = json.loads(request.data.decode("UTF-8")).get("api_key", "")
-        else:
-           key = request.args.get("api_key", "")
+        app.logger.warning(request.data)
+        app.logger.warning(request.data.decode("UTF-8"))
+        app.logger.warning(json.loads(request.data.decode("UTF-8")))
 
-        if( key == app.config["API_KEY"] or app.config["API_KEY"] == "" ):
+        if request.data:
+            key = json.loads(request.data.decode("UTF-8")).get("api_key", "")
+        else:
+            key = request.args.get("api_key", "")
+
+        if(key == app.config["API_KEY"] or app.config["API_KEY"] == ""):
             return f(*args, **kwargs)
         else:
-            app.logger.warning("Unauthorized address trying to use API: {}".format(request.remote_addr) + 
-                               "\nwith api key: " + key)
+            app.logger.warning(
+                "Unauthorized address trying to use API: {}".format(
+                    request.remote_addr
+                ) + "\nwith api key: " + key
+            )
             abort(401)
-    
-    return decorated
 
+    return decorated

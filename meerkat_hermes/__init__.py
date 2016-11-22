@@ -1,18 +1,20 @@
 """
-meerkat_hermers.py
+meerkat_hermes.py
 
 Root Flask app for the Meerkat Hermes messaging module.
 """
 from flask import Flask
-from flask.json import JSONEncoder
-from flask_restful import Api, reqparse
+from flask_restful import Api
 import boto3
+import logging
 
 # Create the Flask app
 app = Flask(__name__)
 app.config.from_object('config.Production')
 app.config.from_envvar('MEERKAT_HERMES_SETTINGS')
-api=Api(app)
+api = Api(app)
+
+logging.warning('App loaded')
 
 # Import the API resources
 # Import them after creating the app, because they depend upon the app.
@@ -34,13 +36,20 @@ api.add_resource(Log, "/log/<string:log_id>")
 api.add_resource(Verify, "/verify", "/verify/<string:subscriber_id>")
 api.add_resource(Unsubscribe, "/unsubscribe/<string:subscriber_id>")
 
-#display something at /
+
+# display something at /
 @app.route('/')
 @require_api_key
 def hello_world():
-    """Display something at /.  
-       This method loads a dynamodb table and displays its creation date.
     """
-    db = boto3.resource('dynamodb')
-    table = db.Table('hermes_subscribers')
+    Display something at /.
+    This method loads a dynamodb table and displays its creation date.
+    """
+    logging.warning("Index called")
+    db = boto3.resource(
+        'dynamodb',
+        endpoint_url=app.config['DB_URL'],
+        region_name='eu-west-1'
+    )
+    table = db.Table(app.config['SUBSCRIBERS'])
     return table.creation_date_time.strftime('%d/%m/%Y')

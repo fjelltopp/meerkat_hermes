@@ -1,90 +1,104 @@
-import uuid, boto3, urllib, datetime, time, json, meerkat_hermes
+import meerkat_hermes
 from flask import current_app, Response
-from boto3.dynamodb.conditions import Key, Attr
+from boto3.dynamodb.conditions import Key
+from datetime import datetime
+import uuid
+import boto3
+import urllib
+import time
+import json
+
 
 def send_email(destination, subject, message, html, sender):
     """
-    Sends an email using Amazon SES. 
-       
+    Sends an email using Amazon SES.
+
     Args:
         destination ([str]): Required. The email address to send to.\n
         subject (str): Required. The email subject. \n
         message (str): Required. The message to be sent. \n
         html (str): The html version of the message to be sent.
                     Defaults to the same as 'message'. \n
-        sender (str): The sender's address. Must be an AWS SES verified email address.
-                      Defaults to the config file SENDER value.
+        sender (str): The sender's address. Must be an AWS SES verified email
+                      address. Defaults to the config file SENDER value.
 
     Returns:
         The Amazon SES response.
-    """ 
+    """
 
-    #Load the email client
+    # Load the email client
     client = boto3.client('ses')
 
-    if( not html ):
-        html = message.replace( '\n', '<br />' )
+    if(not html):
+        html = message.replace('\n', '<br />')
 
-    response = client.send_email( 
-        Source = sender,
-        Destination = {
-            'ToAddresses':destination
-        },      
-        Message = {
-            'Subject':{
-                'Data':subject,
-                'Charset':meerkat_hermes.app.config['CHARSET']
+    response = client.send_email(
+        Source=sender,
+        Destination={
+            'ToAddresses': destination
+        },
+        Message={
+            'Subject': {
+                'Data': subject,
+                'Charset': meerkat_hermes.app.config['CHARSET']
             },
-            'Body':{
-                'Text':{
-                    'Data':message,
-                    'Charset':meerkat_hermes.app.config['CHARSET']
+            'Body': {
+                'Text': {
+                    'Data': message,
+                    'Charset': meerkat_hermes.app.config['CHARSET']
                 },
-                'Html':{
-                    'Data':html,
-                    'Charset':meerkat_hermes.app.config['CHARSET']
+                'Html': {
+                    'Data': html,
+                    'Charset': meerkat_hermes.app.config['CHARSET']
                 }
             }
-        }    
+        }
     )
 
     response['SesMessageId'] = response.pop('MessageId')
     response['Destination'] = destination
 
     return response
-    
-def log_message( messageID, details ):
+
+
+def log_message(messageID, details):
     """
-    Logs that a message has been sent in the relavent dynamodb table. 
-       
+    Logs that a message has been sent in the relavent dynamodb table.
+
     Args:
         messageID (str): Required. The unique message ID to be logged (Str)
                          Will fail if the messageID already exists.\n
-        details (dict): Required. A dictionary containing any further details you wish to store.
-                        Typically: destinations, message, time and medium and optionally topics.
+        details (dict): Required. A dictionary containing any further details
+                        you wish to store. Typically: destinations, message,
+                        time and medium and optionally topics.
 
     Returns:
         The Amazon DynamoDB response.
-    """ 
-    db = boto3.resource('dynamodb')
+    """
+    db = boto3.resource(
+        'dynamodb',
+        endpoint_url=current_app.config['DB_URL'],
+        region_name='eu-west-1'
+    )
     table = db.Table(meerkat_hermes.app.config['LOG'])
 
     details['id'] = messageID
-    response = table.put_item( Item=details )
+    response = table.put_item(Item=details)
 
     return response, 200
 
-def send_sms( destination, message ):
+
+def send_sms(destination, message):
     """
-    Sends an sms message using Nexmo. 
-       
+    Sends an sms message using Nexmo.
+
     Args:
         destination (str): Required. The sms number to send to.\n
         message (str): Required. The message to be sent.
 
     Returns:
         The Nexmo response.
-    """ 
+    """
     params = {
         'api_key': meerkat_hermes.app.config['NEXMO_PUBLIC_KEY'],
         'api_secret': meerkat_hermes.app.config['NEXMO_PRIVATE_KEY'],
@@ -93,10 +107,11 @@ def send_sms( destination, message ):
         'text': message
     }
 
-    url = 'https://rest.nexmo.com/sms/json?' + urllib.parse.urlencode(params)   
+    url = 'https://rest.nexmo.com/sms/json?' + urllib.parse.urlencode(params)
     response = urllib.request.urlopen(url)
-    response =  json.loads( response.read().decode('UTF-8')  )
+    response = json.loads(response.read().decode('UTF-8'))
     return response
+
 
 def get_date():
     """
@@ -105,45 +120,60 @@ def get_date():
        Returns:
            The current date and time in Y:M:DTH:M:S format.
     """
-    return datetime.datetime.fromtimestamp(time.time()).strftime('%Y:%m:%dT%H:%M:%S')
+    return datetime.fromtimestamp(time.time()).strftime('%Y:%m:%dT%H:%M:%S')
 
-def id_valid( messageID ):
+
+def id_valid(messageID):
     """
-    Checks whether or not the given messageID has already been logged. 
-    
+    Checks whether or not the given messageID has already been logged.
+
     Returns:
-        bool - True for a valid message ID, False for one that has already been logged.
+        bool - True for a valid message ID, False for one that has already
+               been logged.
     """
-    table = boto3.resource('dynamodb').Table(meerkat_hermes.app.config['LOG'])
-    response = table.get_item( 
+    db = boto3.resource(
+        'dynamodb',
+        endpoint_url=current_app.config['DB_URL'],
+        region_name='eu-west-1'
+    )
+    table = db.Table(meerkat_hermes.app.config['LOG'])
+    response = table.get_item(
         Key={
-            'id':messageID
+            'id': messageID
         }
     )
 
     if 'Item' in response:
-        return False 
+        return False
     else:
         return True
 
-def replace_keywords( message, subscriber ):
+
+def replace_keywords(message, subscriber):
 
     for key in subscriber:
-        placeholder = "<<"+key+">>"
+        placeholder = "<<" + key + ">>"
         replace = str(subscriber[key])
-        #If it's a list, e.g. topics, then it's a little more complicated.
+        # If it's a list, e.g. topics, then it's a little more complicated.
         if isinstance(subscriber[key], list):
             replace = ""
             for i in range(len(subscriber[key])):
                 replace += subscriber[key][i]
-                if i < len(subscriber[key])-2: replace += ', '
-                elif i == len(subscriber[key])-2: replace += ' and '
-        message = message.replace( placeholder, replace )
+                if i < len(subscriber[key]) - 2:
+                    replace += ', '
+                elif i == len(subscriber[key]) - 2:
+                    replace += ' and '
+        message = message.replace(placeholder, replace)
     return message
-    
-def create_subscriptions( subscriber_id, topics ):
 
-    db = boto3.resource('dynamodb')
+
+def create_subscriptions(subscriber_id, topics):
+
+    db = boto3.resource(
+        'dynamodb',
+        endpoint_url=current_app.config['DB_URL'],
+        region_name='eu-west-1'
+    )
     table = db.Table(meerkat_hermes.app.config['SUBSCRIPTIONS'])
 
     with table.batch_writer() as batch:
@@ -156,11 +186,12 @@ def create_subscriptions( subscriber_id, topics ):
                 }
             )
 
+
 def delete_subscriber(subscriber_id):
     """
-    Delete a subscriber from the database. At the moment, if a user wishes to change
-    information, they need to delete themselves and then re-add themselves with the
-    new information.
+    Delete a subscriber from the database. At the moment, if a user wishes to
+    change information, they need to delete themselves and then re-add
+    themselves with the new information.
 
     Args:
          subscriber_id (str)
@@ -168,19 +199,26 @@ def delete_subscriber(subscriber_id):
          The amazon dynamodb response.
     """
 
-    db = boto3.resource('dynamodb')
+    db = boto3.resource(
+        'dynamodb',
+        endpoint_url=current_app.config['DB_URL'],
+        region_name='eu-west-1'
+    )
     subscribers = db.Table(meerkat_hermes.app.config['SUBSCRIBERS'])
     subscriptions = db.Table(meerkat_hermes.app.config['SUBSCRIPTIONS'])
 
-    subscribers_response = subscribers.delete_item( 
+    subscribers_response = subscribers.delete_item(
         Key={
-            'id':subscriber_id
+            'id': subscriber_id
         }
     )
 
-    #dynamoDB doesn't currently support deletions by secondary indexes (it may appear in the future). 
-    #Deleteing by subscriber index is therefore a two hop process.
-    #(1) Query for the primary key values i.e.topicID (2) Using topicID's, batch delete the records.
+    # dynamoDB doesn't currently support deletions by secondary indexes
+    # it may appear in the future.
+    # Deleteing by subscriber index is therefore a two hop process.
+    # (1) Query for the primary key values i.e.topicID (2) Using topicID's,
+    # batch delete the records.
+    # TODO: My understanding has changed, there is a better way of doing this.
     query_response = subscriptions.query(
         IndexName='subscriberID-index',
         KeyConditionExpression=Key('subscriberID').eq(subscriber_id)
@@ -189,26 +227,23 @@ def delete_subscriber(subscriber_id):
     with subscriptions.batch_writer() as batch:
         for record in query_response['Items']:
             batch.delete_item(
-                Key={ 
-                   'subscriptionID': record['subscriptionID']
+                Key={
+                    'subscriptionID': record['subscriptionID']
                 }
-            )       
-    
-    status = 200   
-    response = "<html><body><H2>You have been successfully unsubscribed.</H2></body</html>"
+            )
+
+    status = 200
+    response = ("<html><body><H2>You have been "
+                "successfully unsubscribed.</H2></body</html>")
     mimetype = 'text/html'
 
     if not subscribers_response['ResponseMetadata']['HTTPStatusCode'] == 200:
         if not query_response['ResponseMetadata']['HTTPStatusCode'] == 200:
             status = 500
-            response = "{'message':'500 Internal Server Error: Unable to complete deletion.'}"
+            response = ("{'message':'500 Internal Server "
+                        "Error: Unable to complete deletion.'}")
             mimetype = 'application/json'
 
-    return Response( response, 
-                     status=status,
-                     mimetype=mimetype ) 
-
-
-    
-    
-    
+    return Response(response,
+                    status=status,
+                    mimetype=mimetype)
