@@ -1,4 +1,4 @@
-# !/usr/local/bin/python3
+#!/usr/local/bin/python3
 """
 This is a utility script to help set up some accounts for testing and
 development. It create a registered, manager and root account for every country
@@ -84,50 +84,27 @@ if args.setup:
     )
 
     # Create the required tables in the database
-    response = db.create_table(
-        TableName=app.config['SUBSCRIBERS'],
-        AttributeDefinitions=[
-            {'AttributeName': 'username', 'AttributeType': 'S'}
-        ],
-        KeySchema=[{'AttributeName': 'username', 'KeyType': 'HASH'}],
-        ProvisionedThroughput={'ReadCapacityUnits': 5, 'WriteCapacityUnits': 5}
-    )
-
-    print(response)
-
-    response = db.create_table(
-        TableName=app.config['SUBSCRIPTIONS'],
-        AttributeDefinitions=[
-            {'AttributeName': 'country', 'AttributeType': 'S'},
-            {'AttributeName': 'role', 'AttributeType': 'S'}
-        ],
-        KeySchema=[
-            {'AttributeName': 'country', 'KeyType': 'HASH'},
-            {'AttributeName': 'role', 'KeyType': 'RANGE'}
-        ],
-        ProvisionedThroughput={'ReadCapacityUnits': 5, 'WriteCapacityUnits': 5}
-    )
-
-    print(response)
-
-    response = db.create_table(
-        TableName=app.config['LOG'],
-        AttributeDefinitions=[
-            {'AttributeName': 'country', 'AttributeType': 'S'},
-            {'AttributeName': 'role', 'AttributeType': 'S'}
-        ],
-        KeySchema=[
-            {'AttributeName': 'country', 'KeyType': 'HASH'},
-            {'AttributeName': 'role', 'KeyType': 'RANGE'}
-        ],
-        ProvisionedThroughput={'ReadCapacityUnits': 5, 'WriteCapacityUnits': 5}
-    )
-
-    print(response)
+    tables = [
+        app.config['SUBSCRIBERS'],
+        app.config['SUBSCRIPTIONS'],
+        app.config['LOG']
+    ]
+    for table in tables:
+        response = db.create_table(
+            TableName=table,
+            AttributeDefinitions=[
+                {'AttributeName': 'username', 'AttributeType': 'S'}
+            ],
+            KeySchema=[{'AttributeName': 'username', 'KeyType': 'HASH'}],
+            ProvisionedThroughput={
+                'ReadCapacityUnits': 5,
+                'WriteCapacityUnits': 5
+            }
+        )
+        print(response)
 
 # Put initial fake data into the database.
 if args.populate:
-
     print('Populated dev db with nothing.')
 
 # Finally list all items in the database, so we know what it is populated with.
