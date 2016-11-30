@@ -39,7 +39,6 @@ api.add_resource(Unsubscribe, "/unsubscribe/<string:subscriber_id>")
 
 # display something at /
 @app.route('/')
-@require_api_key
 def hello_world():
     """
     Display something at /.
