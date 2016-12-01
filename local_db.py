@@ -17,8 +17,11 @@ steps in the above order.
 You can run these commands inside the docker container if there are database
 issues.
 """
-import boto3
 from meerkat_hermes import app
+from meerkat_hermes import util
+import boto3
+import os
+import ast
 import argparse
 
 # PARSE ARGUMENTS
@@ -61,11 +64,8 @@ if args.clear:
     try:
         print('Cleaning the dev db.')
         response = db.Table(app.config['SUBSCRIBERS']).delete()
-        print(response)
         response = db.Table(app.config['SUBSCRIPTIONS']).delete()
-        print(response)
         response = db.Table(app.config['LOG']).delete()
-        print(response)
         print('Cleaned the db.')
     except Exception as e:
         print(e)
@@ -84,35 +84,113 @@ if args.setup:
     )
 
     # Create the required tables in the database
-    tables = [
+    response = db.create_table(
+        TableName=app.config['SUBSCRIBERS'],
+        AttributeDefinitions=[
+            {'AttributeName': 'id', 'AttributeType': 'S'}
+        ],
+        KeySchema=[{'AttributeName': 'id', 'KeyType': 'HASH'}],
+        ProvisionedThroughput={
+            'ReadCapacityUnits': 5,
+            'WriteCapacityUnits': 5
+        }
+    )
+    print("Table {} status: {}".format(
         app.config['SUBSCRIBERS'],
-        app.config['SUBSCRIPTIONS'],
-        app.config['LOG']
-    ]
-    for table in tables:
-        response = db.create_table(
-            TableName=table,
-            AttributeDefinitions=[
-                {'AttributeName': 'username', 'AttributeType': 'S'}
-            ],
-            KeySchema=[{'AttributeName': 'username', 'KeyType': 'HASH'}],
-            ProvisionedThroughput={
-                'ReadCapacityUnits': 5,
-                'WriteCapacityUnits': 5
+        response['TableDescription'].get('TableStatus')
+    ))
+
+    response = db.create_table(
+        TableName=app.config['SUBSCRIPTIONS'],
+        AttributeDefinitions=[
+            {'AttributeName': 'subscriptionID', 'AttributeType': 'S'},
+            {'AttributeName': 'subscriberID', 'AttributeType': 'S'},
+            {'AttributeName': 'topicID', 'AttributeType': 'S'}
+        ],
+        GlobalSecondaryIndexes=[{
+            'IndexName': 'topicID-index',
+            'KeySchema': [{
+                'AttributeName': 'topicID',
+                'KeyType': 'HASH'
+            }],
+            'Projection': {'ProjectionType': 'ALL'},
+            'ProvisionedThroughput': {
+                'ReadCapacityUnits': 1,
+                'WriteCapacityUnits': 1
             }
-        )
-        print(response)
+        }, {
+            'IndexName': 'subscriberID-index',
+            'KeySchema': [{
+                'AttributeName': 'subscriberID',
+                'KeyType': 'HASH'
+            }],
+            'Projection': {'ProjectionType': 'ALL'},
+            'ProvisionedThroughput': {
+                'ReadCapacityUnits': 1,
+                'WriteCapacityUnits': 1
+            }
+        }],
+        KeySchema=[{'AttributeName': 'subscriptionID', 'KeyType': 'HASH'}],
+        ProvisionedThroughput={
+            'ReadCapacityUnits': 5,
+            'WriteCapacityUnits': 5
+        }
+    )
+    print("Table {} status: {}".format(
+        app.config['SUBSCRIPTIONS'],
+        response['TableDescription'].get('TableStatus')
+    ))
+
+    response = db.create_table(
+        TableName=app.config['LOG'],
+        AttributeDefinitions=[
+            {'AttributeName': 'id', 'AttributeType': 'S'}
+        ],
+        KeySchema=[{'AttributeName': 'id', 'KeyType': 'HASH'}],
+        ProvisionedThroughput={
+            'ReadCapacityUnits': 5,
+            'WriteCapacityUnits': 5
+        }
+    )
+    print("Table {} status: {}".format(
+        app.config['LOG'],
+        response['TableDescription'].get('TableStatus')
+    ))
 
 # Put initial fake data into the database.
 if args.populate:
-    print('Populated dev db with nothing.')
+
+    print('Populating the hermes dev db.')
+
+    # Get developer accounts to be inserted into local database.
+    path = os.path.dirname(os.path.realpath(__file__)) + '/../.accounts.cfg'
+    users_file = open(path, 'r+').read()
+    users = ast.literal_eval(users_file) if users_file else {}
+
+    # Create the subscriptions for the developer's accounts.
+    for username, user in users.items():
+        util.subscribe(
+            user['first_name'],
+            user['last_name'],
+            user['email'],
+            'All',
+            ['test-emails', 'error-reporting'],
+            sms=user['sms'],
+            verified=True
+        )
+        print('Added subscriber: {} {}'.format(
+            user['first_name'], user['last_name']
+        ))
+
+    print('Populated dev db.')
 
 # Finally list all items in the database, so we know what it is populated with.
 if args.list:
     print('Listing data in the database.')
     db = boto3.resource(
-            'dynamodb',
-            endpoint_url='http://dynamodb:8000', region_name='eu_west'
+        'dynamodb',
+        endpoint_url='http://dynamodb:8000',
+        region_name='eu_west'
     )
     try:
         # List subscribers.
@@ -120,23 +198,28 @@ if args.list:
         subscribers = subscribers.scan().get("Items", [])
         if subscribers:
             print("Subscribers created:")
-            print(subscribers)
+            for subscriber in subscribers:
+                print("{} {} - {} {}".format(
+                    subscriber['first_name'],
+                    subscriber['last_name'],
+                    subscriber['email'],
+                    subscriber.get('sms', '(no sms)')
+                ))
         else:
             print("No subscribers exist.")
 
         # List subscriptions.
         subscriptions = db.Table(app.config['SUBSCRIPTIONS'])
         subscriptions = subscriptions.scan().get("Items", [])
-        if subscribers:
-            print("Subscriptions created:")
-            print(subscriptions)
+        if subscriptions:
+            print("{} subscriptions created".format(len(subscriptions)))
         else:
             print("No subscriptions exist.")
 
         # List log.
         log = db.Table(app.config['LOG'])
         log = log.scan().get("Items", [])
-        if subscribers:
+        if log:
             print("Log created:")
             print(log)
         else:
