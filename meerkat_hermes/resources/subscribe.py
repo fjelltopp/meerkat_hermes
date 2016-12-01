@@ -5,7 +5,6 @@ Conceptually, there are subscribers, there are topics (in "hermes_topics"
 table), and there are subscriptions which map between subscribers and topics
 using their id fields.
 """
-import uuid
 import boto3
 import json
 from flask_restful import Resource, reqparse
@@ -93,27 +92,16 @@ class Subscribe(Resource):
                             help='A list of subscription topic IDs.')
 
         args = parser.parse_args()
-        subscriber_id = uuid.uuid4().hex
-        subscriber = {
-            'id': subscriber_id,
-            'first_name': args['first_name'],
-            'last_name': args['last_name'],
-            'country': args['country'],
-            'email': args['email'],
-            'topics': args['topics']
-        }
-        if args['sms'] is not None:
-            subscriber['sms'] = args['sms']
-        if args['verified'] is not None:
-            subscriber['verified'] = args['verified']
-        else:
-            subscriber['verified'] = False
 
-        response = self.subscribers.put_item(Item=subscriber)
-        response['subscriber_id'] = subscriber_id
-
-        if subscriber['verified']:
-            util.create_subscriptions(subscriber_id, args['topics'])
+        response = util.subscribe(
+            args['first_name'],
+            args['last_name'],
+            args['email'],
+            args['country'],
+            args['topics'],
+            args.get('sms', ''),
+            args.get('verified', '')
+        )
 
         return Response(json.dumps(response),
                         status=response['ResponseMetadata']['HTTPStatusCode'],

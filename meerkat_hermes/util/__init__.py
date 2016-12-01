@@ -1,5 +1,6 @@
 import meerkat_hermes
-from flask import current_app, Response
+from meerkat_hermes import app
+from flask import Response
 from boto3.dynamodb.conditions import Key
 from datetime import datetime
 import uuid
@@ -7,6 +8,60 @@ import boto3
 import urllib
 import time
 import json
+
+
+def subscribe(first_name, last_name, email,
+              country, topics, sms="", verified=False):
+    """
+    Subscribes a user.  Factored out of the resources so it can be called
+    easily from python code.
+
+    Args:
+        first_name (str): Required. The subscriber's first name.\n
+        last_name (str): Required. The subscriber's last name.\n
+        email (str): Required. The subscriber's email address.\n
+        country (str): Required. The country that the subscriber has signed
+                       up to.\n
+        sms (str): The subscribers phone number for sms.\n
+        topics ([str]): Required. The ID's for the topics to which the
+                        subscriber wishes to subscribe.\n
+        verified (bool): Are their contact details verified? Defaults to
+                         False.
+    """
+    # Assign the new subscriber a unique id.
+    subscriber_id = uuid.uuid4().hex
+
+    # Create the subscriber object.
+    subscriber = {
+        'id': subscriber_id,
+        'first_name': first_name,
+        'last_name': last_name,
+        'country': country,
+        'email': email,
+        'topics': topics,
+        'verified': False
+    }
+
+    if sms:
+        subscriber['sms'] = sms
+    if verified:
+        subscriber['verified'] = verified
+
+    # Write the subscriber to the database.
+    db = boto3.resource(
+        'dynamodb',
+        endpoint_url=app.config['DB_URL'],
+        region_name='eu-west-1'
+    )
+    subscribers = db.Table(meerkat_hermes.app.config['SUBSCRIBERS'])
+    response = subscribers.put_item(Item=subscriber)
+    response['subscriber_id'] = subscriber_id
+
+    # If the subscriber has already been verified, create the subscriptions.
+    if subscriber['verified']:
+        create_subscriptions(subscriber_id, topics)
+
+    return response
 
 
 def send_email(destination, subject, message, html, sender):
@@ -27,7 +82,7 @@ def send_email(destination, subject, message, html, sender):
     """
 
     # Load the email client
-    client = boto3.client('ses')
+    client = boto3.client('ses', region_name='eu-west-1')
 
     if(not html):
         html = message.replace('\n', '<br />')
@@ -77,7 +132,7 @@ def log_message(messageID, details):
     """
     db = boto3.resource(
         'dynamodb',
-        endpoint_url=current_app.config['DB_URL'],
+        endpoint_url=meerkat_hermes.app.config['DB_URL'],
         region_name='eu-west-1'
     )
     table = db.Table(meerkat_hermes.app.config['LOG'])
@@ -133,7 +188,7 @@ def id_valid(messageID):
     """
     db = boto3.resource(
         'dynamodb',
-        endpoint_url=current_app.config['DB_URL'],
+        endpoint_url=meerkat_hermes.app.config['DB_URL'],
         region_name='eu-west-1'
     )
     table = db.Table(meerkat_hermes.app.config['LOG'])
@@ -168,10 +223,9 @@ def replace_keywords(message, subscriber):
 
 
 def create_subscriptions(subscriber_id, topics):
-
     db = boto3.resource(
         'dynamodb',
-        endpoint_url=current_app.config['DB_URL'],
+        endpoint_url=meerkat_hermes.app.config['DB_URL'],
         region_name='eu-west-1'
     )
     table = db.Table(meerkat_hermes.app.config['SUBSCRIPTIONS'])
@@ -198,10 +252,9 @@ def delete_subscriber(subscriber_id):
     Returns:
          The amazon dynamodb response.
     """
-
     db = boto3.resource(
         'dynamodb',
-        endpoint_url=current_app.config['DB_URL'],
+        endpoint_url=meerkat_hermes.app.config['DB_URL'],
         region_name='eu-west-1'
     )
     subscribers = db.Table(meerkat_hermes.app.config['SUBSCRIBERS'])
