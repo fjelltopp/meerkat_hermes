@@ -2,7 +2,7 @@ import meerkat_hermes
 from meerkat_hermes import app
 from flask import Response
 from boto3.dynamodb.conditions import Key
-from datetime import datetime
+from datetime import datetime, timedelta
 import uuid
 import boto3
 import urllib
@@ -53,7 +53,7 @@ def subscribe(first_name, last_name, email,
         endpoint_url=app.config['DB_URL'],
         region_name='eu-west-1'
     )
-    subscribers = db.Table(meerkat_hermes.app.config['SUBSCRIBERS'])
+    subscribers = db.Table(app.config['SUBSCRIBERS'])
     response = subscribers.put_item(Item=subscriber)
     response['subscriber_id'] = subscriber_id
 
@@ -95,16 +95,16 @@ def send_email(destination, subject, message, html, sender):
         Message={
             'Subject': {
                 'Data': subject,
-                'Charset': meerkat_hermes.app.config['CHARSET']
+                'Charset': app.config['CHARSET']
             },
             'Body': {
                 'Text': {
                     'Data': message,
-                    'Charset': meerkat_hermes.app.config['CHARSET']
+                    'Charset': app.config['CHARSET']
                 },
                 'Html': {
                     'Data': html,
-                    'Charset': meerkat_hermes.app.config['CHARSET']
+                    'Charset': app.config['CHARSET']
                 }
             }
         }
@@ -132,15 +132,32 @@ def log_message(messageID, details):
     """
     db = boto3.resource(
         'dynamodb',
-        endpoint_url=meerkat_hermes.app.config['DB_URL'],
+        endpoint_url=app.config['DB_URL'],
         region_name='eu-west-1'
     )
-    table = db.Table(meerkat_hermes.app.config['LOG'])
+    table = db.Table(app.config['LOG'])
 
     details['id'] = messageID
     response = table.put_item(Item=details)
 
     return response, 200
+
+
+def limit_exceeded():
+    """
+    Each time the method is called, the time of calling is recorded.
+    It then checks whether more than the allowed threshold number of calls
+    has  been made in the past hour.
+
+    Returns:
+        True if more than the allowed threshold number of calls has been
+        made. False otherwise.
+
+    """
+    app.config['CALL_TIMES'].append(datetime.now())
+    while app.config['CALL_TIMES'][0] < datetime.now()-timedelta(hours=1):
+            app.config['CALL_TIMES'].pop(0)
+    return len(app.config['CALL_TIMES']) > app.config['PUBLISH_RATE_LIMIT']
 
 
 def send_sms(destination, message):
@@ -155,10 +172,10 @@ def send_sms(destination, message):
         The Nexmo response.
     """
     params = {
-        'api_key': meerkat_hermes.app.config['NEXMO_PUBLIC_KEY'],
-        'api_secret': meerkat_hermes.app.config['NEXMO_PRIVATE_KEY'],
+        'api_key': app.config['NEXMO_PUBLIC_KEY'],
+        'api_secret': app.config['NEXMO_PRIVATE_KEY'],
         'to': destination,
-        'from': meerkat_hermes.app.config['FROM'],
+        'from': app.config['FROM'],
         'text': message
     }
 
@@ -188,10 +205,10 @@ def id_valid(messageID):
     """
     db = boto3.resource(
         'dynamodb',
-        endpoint_url=meerkat_hermes.app.config['DB_URL'],
+        endpoint_url=app.config['DB_URL'],
         region_name='eu-west-1'
     )
-    table = db.Table(meerkat_hermes.app.config['LOG'])
+    table = db.Table(app.config['LOG'])
     response = table.get_item(
         Key={
             'id': messageID
@@ -225,10 +242,10 @@ def replace_keywords(message, subscriber):
 def create_subscriptions(subscriber_id, topics):
     db = boto3.resource(
         'dynamodb',
-        endpoint_url=meerkat_hermes.app.config['DB_URL'],
+        endpoint_url=app.config['DB_URL'],
         region_name='eu-west-1'
     )
-    table = db.Table(meerkat_hermes.app.config['SUBSCRIPTIONS'])
+    table = db.Table(app.config['SUBSCRIPTIONS'])
 
     with table.batch_writer() as batch:
         for topic_id in topics:
@@ -254,11 +271,11 @@ def delete_subscriber(subscriber_id):
     """
     db = boto3.resource(
         'dynamodb',
-        endpoint_url=meerkat_hermes.app.config['DB_URL'],
+        endpoint_url=app.config['DB_URL'],
         region_name='eu-west-1'
     )
-    subscribers = db.Table(meerkat_hermes.app.config['SUBSCRIBERS'])
-    subscriptions = db.Table(meerkat_hermes.app.config['SUBSCRIPTIONS'])
+    subscribers = db.Table(app.config['SUBSCRIBERS'])
+    subscriptions = db.Table(app.config['SUBSCRIPTIONS'])
 
     subscribers_response = subscribers.delete_item(
         Key={

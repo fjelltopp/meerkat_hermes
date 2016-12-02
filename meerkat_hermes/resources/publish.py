@@ -6,6 +6,7 @@ primary function of meerkat hermes.
 
 import boto3
 import json
+import logging
 import meerkat_hermes.util as util
 from flask_restful import Resource, reqparse
 from flask import current_app, Response
@@ -80,119 +81,139 @@ class Publish(Resource):
                             help='The address from which to send the message')
         args = parser.parse_args()
 
-        # Check that the message hasn't already been sent.
-        if util.id_valid(args['id']):
+        logging.warning(current_app.config['CALL_TIMES'])
 
-            # Set the default values for the non-required fields.
-            if not args['medium']:
-                args['medium'] = ['email']
-            if not args['html-message']:
-                args['html-message'] = args['message']
-            if not args['sms-message']:
-                args['sms-message'] = args['message']
-            if not args['from']:
-                args['from'] = current_app.config['SENDER']
-
-            # Collect the subscriber IDs for all subscriptions to the given
-            # topics.
-            subscribers = []
-
-            for topic in args['topics']:
-                query_response = self.subscriptions.query(
-                    IndexName='topicID-index',
-                    KeyConditionExpression=Key('topicID').eq(topic)
-                )
-                for item in query_response['Items']:
-
-                    subscribers.append(item['subscriberID'])
-
-            # Record details about the sent messages.
-            responses = []
-            destinations = []
-
-            # Send the messages to each subscriber.
-            for subscriber_id in subscribers:
-                # Get subscriber's details.
-                subscriber = self.subscribers.get_item(
-                    Key={'id': subscriber_id}
-                )
-
-                # Subscriptions can get left in database without a subscriber.
-                # This can happen when someone mannually edits the database.
-                # If so, no subscriber will be returned above, so we delete
-                # subscriber properly.
-                if(subscriber['ResponseMetadata']['HTTPStatusCode'] == 200 and
-                   'Item' not in subscriber):
-
-                    util.delete_subscriber(subscriber_id)
-                    message = {
-                        "message": "500 Internal Server Error: subscriberid " +
-                                   subscriber_id + " doesn't exist. The "
-                                   "subscriber has been deleted properly."
-                    }
-                    current_app.logger.warning(message["message"])
-                    responses.append(message)
-
-                else:
-
-                    subscriber = subscriber['Item']
-
-                    # Create some variables to hold the mailmerged messages.
-                    message = args['message']
-                    sms_message = args['sms-message']
-                    html_message = args['html-message']
-
-                    # Enable mail merging on subscriber attributes.
-                    message = util.replace_keywords(message, subscriber)
-                    if args['sms-message']:
-                        sms_message = util.replace_keywords(
-                            sms_message, subscriber)
-                    if args['html-message']:
-                        html_message = util.replace_keywords(
-                            html_message, subscriber)
-
-                    # Assemble and send the messages for each medium.
-                    for medium in args['medium']:
-
-                        if medium == 'email':
-                            temp = util.send_email(
-                                [subscriber['email']],
-                                args['subject'],
-                                message,
-                                html_message,
-                                sender=args['from']
-                            )
-                            temp['type'] = 'email'
-                            temp['message'] = message
-                            responses.append(temp)
-                            destinations.append(subscriber['email'])
-
-                        elif medium == 'sms' and 'sms' in subscriber:
-                            temp = util.send_sms(
-                                subscriber['sms'],
-                                sms_message
-                            )
-                            temp['type'] = 'sms'
-                            temp['message'] = sms_message
-                            responses.append(temp)
-                            destinations.append(subscriber['sms'])
-
-            util.log_message(args['id'], {
-                'destination': destinations,
-                'medium': args['medium'],
-                'time': util.get_date(),
-                'message': args['message'],
-                'topics': 'Published to: ' + str(args['topics'])
-            })
-
-            return Response(json.dumps(responses),
-                            status=200,
+        # Check whether the rate limit has been exceeded.
+        if util.limit_exceeded():
+            # Log the issue.
+            logging.warning("ERROR: Rate limit exceeded.\n{}".format(
+                current_app.config['CALL_TIMES']
+            ))
+            # If limit exceeded, send 503 Service Unavailable error.
+            message = {
+                "message": ("503 Service Unavailable: too many requests " +
+                            "to publish in the past hour. Try again later.")
+            }
+            return Response(json.dumps(message),
+                            status=503,
                             mimetype='application/json')
 
-        else:
+        # Check that the message hasn't already been sent.
+        if not util.id_valid(args['id']):
             # If the message ID exists, return with a 400 bad request response.
-            message = {"message": "400 Bad Request: id " +
-                       args['id'] + " already exists"}
+            message = {
+                "message": ("400 Bad Request: id " + args['id'] +
+                            " already exists")
+            }
             return Response(json.dumps(message),
                             status=400,
                             mimetype='application/json')
+
+        # Assuming everything is fine publish the message.
+        # Set the default values for the non-required fields.
+        if not args['medium']:
+            args['medium'] = ['email']
+        if not args['html-message']:
+            args['html-message'] = args['message']
+        if not args['sms-message']:
+            args['sms-message'] = args['message']
+        if not args['from']:
+            args['from'] = current_app.config['SENDER']
+
+        # Collect the subscriber IDs for all subscriptions to the given
+        # topics.
+        subscribers = []
+
+        for topic in args['topics']:
+            query_response = self.subscriptions.query(
+                IndexName='topicID-index',
+                KeyConditionExpression=Key('topicID').eq(topic)
+            )
+            for item in query_response['Items']:
+
+                subscribers.append(item['subscriberID'])
+
+        # Record details about the sent messages.
+        responses = []
+        destinations = []
+
+        # Send the messages to each subscriber.
+        for subscriber_id in subscribers:
+            # Get subscriber's details.
+            subscriber = self.subscribers.get_item(
+                Key={'id': subscriber_id}
+            )
+
+            # Subscriptions can get left in database without a subscriber.
+            # This can happen when someone mannually edits the database.
+            # If so, no subscriber will be returned above, so we delete
+            # subscriber properly.
+            if(subscriber['ResponseMetadata']['HTTPStatusCode'] == 200 and
+               'Item' not in subscriber):
+
+                util.delete_subscriber(subscriber_id)
+                message = {
+                    "message": "500 Internal Server Error: subscriberid " +
+                               subscriber_id + " doesn't exist. The "
+                               "subscriber has been deleted properly."
+                }
+                current_app.logger.warning(message["message"])
+                responses.append(message)
+
+            else:
+
+                subscriber = subscriber['Item']
+
+                # Create some variables to hold the mailmerged messages.
+                message = args['message']
+                sms_message = args['sms-message']
+                html_message = args['html-message']
+
+                # Enable mail merging on subscriber attributes.
+                message = util.replace_keywords(message, subscriber)
+                if args['sms-message']:
+                    sms_message = util.replace_keywords(
+                        sms_message, subscriber
+                    )
+                if args['html-message']:
+                    html_message = util.replace_keywords(
+                        html_message, subscriber
+                    )
+
+                # Assemble and send the messages for each medium.
+                for medium in args['medium']:
+
+                    if medium == 'email':
+                        temp = util.send_email(
+                            [subscriber['email']],
+                            args['subject'],
+                            message,
+                            html_message,
+                            sender=args['from']
+                        )
+                        temp['type'] = 'email'
+                        temp['message'] = message
+                        responses.append(temp)
+                        destinations.append(subscriber['email'])
+
+                    elif medium == 'sms' and 'sms' in subscriber:
+                        temp = util.send_sms(
+                            subscriber['sms'],
+                            sms_message
+                        )
+                        temp['type'] = 'sms'
+                        temp['message'] = sms_message
+                        responses.append(temp)
+                        destinations.append(subscriber['sms'])
+
+        util.log_message(args['id'], {
+            'destination': destinations,
+            'medium': args['medium'],
+            'time': util.get_date(),
+            'message': args['message'],
+            'topics': 'Published to: ' + str(args['topics'])
+        })
+
+        return Response(json.dumps(responses),
+                        status=200,
+                        mimetype='application/json')

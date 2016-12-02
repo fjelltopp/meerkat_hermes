@@ -87,13 +87,26 @@ if args.setup:
     response = db.create_table(
         TableName=app.config['SUBSCRIBERS'],
         AttributeDefinitions=[
-            {'AttributeName': 'id', 'AttributeType': 'S'}
+            {'AttributeName': 'id', 'AttributeType': 'S'},
+            {'AttributeName': 'email', 'AttributeType': 'S'}
         ],
         KeySchema=[{'AttributeName': 'id', 'KeyType': 'HASH'}],
         ProvisionedThroughput={
             'ReadCapacityUnits': 5,
             'WriteCapacityUnits': 5
-        }
+        },
+        GlobalSecondaryIndexes=[{
+            'IndexName': 'email-index',
+            'KeySchema': [{
+                'AttributeName': 'email',
+                'KeyType': 'HASH'
+            }],
+            'Projection': {'ProjectionType': 'ALL'},
+            'ProvisionedThroughput': {
+                'ReadCapacityUnits': 1,
+                'WriteCapacityUnits': 1
+            }
+        }],
     )
     print("Table {} status: {}".format(
         app.config['SUBSCRIBERS'],
@@ -144,13 +157,26 @@ if args.setup:
     response = db.create_table(
         TableName=app.config['LOG'],
         AttributeDefinitions=[
-            {'AttributeName': 'id', 'AttributeType': 'S'}
+            {'AttributeName': 'id', 'AttributeType': 'S'},
+            {'AttributeName': 'message', 'AttributeType': 'S'}
         ],
         KeySchema=[{'AttributeName': 'id', 'KeyType': 'HASH'}],
         ProvisionedThroughput={
             'ReadCapacityUnits': 5,
             'WriteCapacityUnits': 5
-        }
+        },
+        GlobalSecondaryIndexes=[{
+            'IndexName': 'message-index',
+            'KeySchema': [{
+                'AttributeName': 'message',
+                'KeyType': 'HASH'
+            }],
+            'Projection': {'ProjectionType': 'ALL'},
+            'ProvisionedThroughput': {
+                'ReadCapacityUnits': 1,
+                'WriteCapacityUnits': 1
+            }
+        }],
     )
     print("Table {} status: {}".format(
         app.config['LOG'],

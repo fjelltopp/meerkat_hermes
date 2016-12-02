@@ -38,6 +38,9 @@ class Config(object):
 
     API_KEY = "test-hermes"
 
+    PUBLISH_RATE_LIMIT = 20
+    CALL_TIMES = []
+
 
 class Production(Config):
     DEBUG = True
