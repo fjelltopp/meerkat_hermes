@@ -189,7 +189,8 @@ if args.populate:
     print('Populating the hermes dev db.')
 
     # Get developer accounts to be inserted into local database.
-    path = os.path.dirname(os.path.realpath(__file__)) + '/../.accounts.cfg'
+    path = (os.path.dirname(os.path.realpath(__file__)) +
+            '/../.settings/accounts.cfg')
     users_file = open(path, 'r+').read()
     users = ast.literal_eval(users_file) if users_file else {}
 
