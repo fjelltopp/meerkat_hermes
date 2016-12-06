@@ -55,6 +55,8 @@ class Development(Config):
 class Testing(Config):
     DEBUG = False
     TESTING = True
+    API_KEY = ""
     SUBSCRIBERS = 'test_hermes_subscribers'
     SUBSCRIPTIONS = 'test_hermes_subscriptions'
     LOG = 'test_hermes_log'
+    DB_URL = "https://dynamodb.eu-west-1.amazonaws.com"

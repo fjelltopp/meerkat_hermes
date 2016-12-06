@@ -43,8 +43,7 @@ class MeerkatHermesTestCase(unittest.TestCase):
     def setup_class(self):
         """Setup for testing"""
 
-        app.config['TESTING'] = True
-        app.config['API_KEY'] = ""
+        app.config.from_object('config.Testing')
         self.app = meerkat_hermes.app.test_client()
 
         # Load the database
@@ -153,10 +152,28 @@ class MeerkatHermesTestCase(unittest.TestCase):
         Test the id_valid utility function that checks whether a message ID
         already exists.
         """
-        existing_id = self.log.scan(Limit=1)['Items'][0]['id']
+        # Create test message log.
+        log = {
+            'id': 'testID',
+            'destination': [self.subscriber['email']],
+            'message': self.message['message'],
+            'medium': ['email'],
+            'time': util.get_date()
+        }
+        self.log.put_item(Item=log)
+
+        # Test the id_valid utility function.
+        existing_id = log['id']
         nonexisting_id = 'FAKETESTID'
         self.assertFalse(util.id_valid(existing_id))
         self.assertTrue(util.id_valid(nonexisting_id))
+
+        # Delete the created log
+        delete_response = self.app.delete('/log/' + log['id'])
+        delete_response = json.loads(delete_response.data.decode('UTF-8'))
+        print(delete_response)
+        self.assertEquals(delete_response['ResponseMetadata'][
+                          'HTTPStatusCode'], 200)
 
     def test_util_create_subscriptions(self):
         """
