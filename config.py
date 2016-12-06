@@ -41,6 +41,9 @@ class Config(object):
     PUBLISH_RATE_LIMIT = 20
     CALL_TIMES = []
 
+    NEXMO_PUBLIC_KEY = ''
+    NEXMO_PRIVATE_KEY = ''
+
 
 class Production(Config):
     DEBUG = True
