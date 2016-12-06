@@ -12,11 +12,10 @@ def require_api_key(f):
     @wraps(f)
     def decorated(*args, **kwargs):
 
-        app.logger.warning(request.data)
-        app.logger.warning(request.data.decode("UTF-8"))
-        app.logger.warning(json.loads(request.data.decode("UTF-8")))
-
         if request.data:
+            app.logger.warning(request.data)
+            app.logger.warning(request.data.decode("UTF-8"))
+            app.logger.warning(json.loads(request.data.decode("UTF-8")))
             key = json.loads(request.data.decode("UTF-8")).get("api_key", "")
         else:
             key = request.args.get("api_key", "")

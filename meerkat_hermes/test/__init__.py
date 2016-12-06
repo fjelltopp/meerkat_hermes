@@ -10,6 +10,7 @@ from io import BytesIO
 from datetime import datetime
 import meerkat_hermes.util as util
 import meerkat_hermes
+from meerkat_hermes import app
 import json
 import unittest
 import boto3
@@ -42,19 +43,19 @@ class MeerkatHermesTestCase(unittest.TestCase):
     def setup_class(self):
         """Setup for testing"""
 
-        meerkat_hermes.app.config['TESTING'] = True
-        meerkat_hermes.app.config['API_KEY'] = ""
+        app.config['TESTING'] = True
+        app.config['API_KEY'] = ""
         self.app = meerkat_hermes.app.test_client()
 
         # Load the database
         db = boto3.resource(
             'dynamodb',
-            endpoint_url=self.app.config['DB_URL'],
+            endpoint_url=app.config['DB_URL'],
             region_name='eu-west-1'
         )
-        self.subscribers = db.Table(self.app.config['SUBSCRIBERS'])
-        self.subscriptions = db.Table(self.app.config['SUBSCRIPTIONS'])
-        self.log = db.Table(self.app.config['LOG'])
+        self.subscribers = db.Table(app.config['SUBSCRIBERS'])
+        self.subscriptions = db.Table(app.config['SUBSCRIPTIONS'])
+        self.log = db.Table(app.config['LOG'])
 
         # Only show warning level+ logs from boto3, botocore and nose.
         # Too verbose otherwise.
@@ -78,11 +79,12 @@ class MeerkatHermesTestCase(unittest.TestCase):
             "messages": 0
         }
 
-        # Fet rid of any undeleted test subscribers.
+        # Get rid of any undeleted test subscribers.
         query_response = self.subscribers.query(
             IndexName='email-index',
             KeyConditionExpression=Key('email').eq(
-                'success@simulator.amazonses.com')
+                'success@simulator.amazonses.com'
+            )
         )
         with self.subscribers.batch_writer() as batch:
             for subscriber in query_response['Items']:
@@ -407,10 +409,10 @@ class MeerkatHermesTestCase(unittest.TestCase):
         put_response = json.loads(put_response.data.decode('UTF-8'))
 
         params = {
-            'api_key': meerkat_hermes.app.config['NEXMO_PUBLIC_KEY'],
-            'api_secret': meerkat_hermes.app.config['NEXMO_PRIVATE_KEY'],
+            'api_key': app.config['NEXMO_PUBLIC_KEY'],
+            'api_secret': app.config['NEXMO_PRIVATE_KEY'],
             'to': sms['sms'],
-            'from': meerkat_hermes.app.config['FROM'],
+            'from': app.config['FROM'],
             'text': sms['message']
         }
 
@@ -584,6 +586,20 @@ class MeerkatHermesTestCase(unittest.TestCase):
         # Delete the test subscribers.
         for subscriber_id in subscriber_ids:
             self.app.delete('/subscribe/' + subscriber_id)
+
+        # Test whether the publish resources squashes requests when they exceed
+        # the rate limit.
+        app.config['PUBLISH_RATE_LIMIT'] = 5
+        message['topics'] = ['Test4']
+        message['id'] = "testID1"
+        message_ids.append(message['id'])
+        put_response = self.app.put('/publish', data=message)
+        put_response_json = json.loads(put_response.data.decode('UTF-8'))
+        print(put_response_json)
+        print(put_response)
+        self.assertEquals(put_response.status_code, 503)
+        self.assertTrue(put_response_json.get('message', False))
+        app.config['PUBLISH_RATE_LIMIT'] = 20
 
 if __name__ == '__main__':
     unittest.main()
