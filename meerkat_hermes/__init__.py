@@ -11,9 +11,11 @@ import logging
 # Create the Flask app
 app = Flask(__name__)
 app.config.from_object('config.Production')
-app.config.from_envvar('MEERKAT_HERMES_SETTINGS')
+try:
+    app.config.from_envvar('MEERKAT_HERMES_SETTINGS')
+except FileNotFoundError:
+    logging.warning("No secret settings specified.")
 api = Api(app)
-
 logging.warning('App loaded')
 
 # Import the API resources
@@ -25,7 +27,6 @@ from meerkat_hermes.resources.publish import Publish
 from meerkat_hermes.resources.log import Log
 from meerkat_hermes.resources.verify import Verify
 from meerkat_hermes.resources.unsubscribe import Unsubscribe
-from meerkat_hermes.authentication import require_api_key
 
 # Add the API  resources.
 api.add_resource(Subscribe, "/subscribe", "/subscribe/<string:subscriber_id>")
