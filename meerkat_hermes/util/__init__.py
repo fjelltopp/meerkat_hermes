@@ -44,6 +44,8 @@ def subscribe(first_name, last_name, email,
 
     if sms:
         subscriber['sms'] = sms
+    if slack:
+        subscriber['slack'] = slack
     if verified:
         subscriber['verified'] = verified
 

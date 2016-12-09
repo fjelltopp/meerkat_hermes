@@ -202,8 +202,9 @@ if args.populate:
             user['email'],
             'All',
             ['test-emails', 'error-reporting'],
-            sms=user['sms'],
-            verified=True
+            sms=user.get('sms', ''),
+            verified=True,
+            slack=user.get('slack', '')
         )
         print('Added subscriber: {} {}'.format(
             user['first_name'], user['last_name']

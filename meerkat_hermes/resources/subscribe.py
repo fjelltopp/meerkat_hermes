@@ -65,6 +65,7 @@ class Subscribe(Resource):
             country (str): Required. The country that the subscriber has signed
                            up to.\n
             sms (str): The subscribers phone number for sms.\n
+            slack (str): The slack username/channel.
             topics ([str]): Required. The ID's for the topics to which the
                             subscriber wishes to subscribe.\n
             verified (bool): Are their contact details verified? Defaults to
@@ -86,6 +87,8 @@ class Subscribe(Resource):
                             type=str, help='Country subscribed to')
         parser.add_argument('sms', required=False, type=str,
                             help='Mobile phone number of the subscriber')
+        parser.add_argument('slack', required=False, type=str,
+                            help='Slack channel or username')
         parser.add_argument('verified', required=False, type=bool,
                             help='Are the contact details verified?')
         parser.add_argument('topics', action='append', required=True, type=str,
@@ -100,6 +103,7 @@ class Subscribe(Resource):
             args['country'],
             args['topics'],
             args.get('sms', ''),
+            args.get('slack', ''),
             args.get('verified', '')
         )
 
