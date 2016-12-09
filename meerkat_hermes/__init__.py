@@ -7,10 +7,11 @@ from flask import Flask
 from flask_restful import Api
 import boto3
 import logging
+import os
 
 # Create the Flask app
 app = Flask(__name__)
-app.config.from_object('config.Production')
+app.config.from_object(os.getenv('CONFIG_OBJECT', 'config.Development'))
 try:
     app.config.from_envvar('MEERKAT_HERMES_SETTINGS')
 except FileNotFoundError:

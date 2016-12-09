@@ -24,12 +24,13 @@ def from_env(env_var, default):
 class Config(object):
     DEBUG = False
     TESTING = False
+    PRODUCTION = False
 
     SUBSCRIBERS = 'hermes_subscribers'
     SUBSCRIPTIONS = 'hermes_subscriptions'
     LOG = 'hermes_log'
 
-    DB_URL = from_env("DB_URL", "https://dynamodb.eu-west-1.amazonaws.com")
+    DB_URL = from_env("DB_URL", "http://dynamodb:8000")
     ROOT_URL = from_env("MEERKAT_HERMES_ROOT", "/hermes")
 
     SENDER = 'Notifications <notifications@emro.info>'
@@ -44,10 +45,12 @@ class Config(object):
     NEXMO_PUBLIC_KEY = ''
     NEXMO_PRIVATE_KEY = ''
 
+    ERROR_REPORTING = ['error-reporting']
+
 
 class Production(Config):
-    DEBUG = True
-    TESTING = False
+    PRODUCTION = True
+    DB_URL = from_env("DB_URL", "https://dynamodb.eu-west-1.amazonaws.com")
 
 
 class Development(Config):
@@ -56,7 +59,6 @@ class Development(Config):
 
 
 class Testing(Config):
-    DEBUG = False
     TESTING = True
     API_KEY = ""
     SUBSCRIBERS = 'test_hermes_subscribers'
