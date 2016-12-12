@@ -179,6 +179,14 @@ class MeerkatHermesTestCase(unittest.TestCase):
         """
         Test the create subscriptions utility function.
         """
+
+        query_response = self.subscriptions.query(
+            IndexName='topicID-index',
+            KeyConditionExpression=Key('topicID').eq('Test1')
+        )
+        print('Test1')
+        print(query_response)
+
         # Create the test subscriptions
         subscriber_id = 'TESTSUBSCRIBERID'
         util.create_subscriptions(subscriber_id, self.subscriber['topics'])
@@ -190,7 +198,8 @@ class MeerkatHermesTestCase(unittest.TestCase):
                 IndexName='topicID-index',
                 KeyConditionExpression=Key('topicID').eq(topic)
             )
-
+            print(topic)
+            print(query_response)
             self.assertEquals(len(query_response['Items']), 1)
             self.assertEquals(query_response['Items'][0][
                               'subscriberID'], subscriber_id)
@@ -617,6 +626,7 @@ class MeerkatHermesTestCase(unittest.TestCase):
         self.assertEquals(put_response.status_code, 503)
         self.assertTrue(put_response_json.get('message', False))
         app.config['PUBLISH_RATE_LIMIT'] = 20
+
 
 if __name__ == '__main__':
     unittest.main()

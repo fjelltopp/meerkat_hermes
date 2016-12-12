@@ -184,7 +184,7 @@ def publish(args):
 
 
 def subscribe(first_name, last_name, email,
-              country, topics, sms="", verified=False):
+              country, topics, sms="", slack="", verified=False):
     """
     Subscribes a user.  Factored out of the resources so it can be called
     easily from python code.
@@ -196,6 +196,7 @@ def subscribe(first_name, last_name, email,
         country (str): Required. The country that the subscriber has signed
                        up to.\n
         sms (str): The subscribers phone number for sms.\n
+        slack (str): The slack username or channel.
         topics ([str]): Required. The ID's for the topics to which the
                         subscriber wishes to subscribe.\n
         verified (bool): Are their contact details verified? Defaults to
