@@ -574,13 +574,9 @@ def notify(args):
     if not args.get('sms-message', ''):
         args['sms-message'] = args['message']
 
-
-
     # Publish any messages to the hot-topic notices.
     args['topics'] = app.config['NOTIFY_DEV']
     args['id'] = 'NOTICE-'+str(datetime.now().isoformat())
 
     # Publish!
     return publish(args)
-
-notify({'message': 'Quick notification.'})
