@@ -627,6 +627,7 @@ class MeerkatHermesTestCase(unittest.TestCase):
         self.assertTrue(put_response_json.get('message', False))
         app.config['PUBLISH_RATE_LIMIT'] = 20
 
+# TODO Test Error and Notify Resources
 
 if __name__ == '__main__':
     unittest.main()
