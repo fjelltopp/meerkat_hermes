@@ -35,153 +35,6 @@ def slack(channel, message, subject=''):
     # Return the slack response
     return r
 
-app.logger.warning(slack('#', "This is a test message", 'Meerkat Error'))
-
-
-def publish(args):
-    """
-    Publishes a message to a given topic set. All subscribers with
-    subscriptions to any of those topics are to receive the message.
-
-    Arguments are passed in the request data.
-
-    Args:
-        args (dictionary): Should contiain the following key/value pairs:\n
-            id (str): Required. If another message with the same ID has been
-                      logged, this one won't send. Returns a 400 Bad Request
-                      error if this is the case.\n
-            message (str): Required. The message.\n
-            topics ([str]): Required. The topics the message fits into
-                            (determines destination address/es). Accepts array
-                            of multiple topics.\n
-            medium ([str]): The medium by which to publish the message
-                            ('email', 'sms', etc...) Defaults to email. Accepts
-                            array of multiple mediums.\n
-            sms-message (str): The sms version of the message. Defaults to the
-                               same as 'message'\n
-            html-message (str): The html version of the message. Defaults to
-                                the same as 'message'\n
-            subject (str): The e-mail subject. Defaults to "".\n
-            from (str): The address from which to send the message. \n
-                        Deafults to an emro address stored in the config.
-
-    Returns:
-        An array of amazon SES and nexmo responses for each message sent.
-    """
-    # Load the database.
-    db = boto3.resource(
-        'dynamodb',
-        endpoint_url=app.config['DB_URL'],
-        region_name='eu-west-1'
-    )
-    subscribers_table = db.Table(app.config['SUBSCRIBERS'])
-    subscriptions_table = db.Table(app.config['SUBSCRIPTIONS'])
-
-    # Collect the subscriber IDs for all subscriptions to the given
-    # topics.
-    subscribers = []
-
-    for topic in args['topics']:
-        query_response = subscriptions_table.query(
-            IndexName='topicID-index',
-            KeyConditionExpression=Key('topicID').eq(topic)
-        )
-        for item in query_response['Items']:
-            subscribers.append(item['subscriberID'])
-
-    # Record details about the sent messages.
-    responses = []
-    destinations = []
-
-    # Send the messages to each subscriber.
-    for subscriber_id in subscribers:
-        # Get subscriber's details.
-        subscriber = subscribers_table.get_item(
-            Key={'id': subscriber_id}
-        )
-
-        # Subscriptions can get left in database without a subscriber.
-        # This can happen when someone mannually edits the database.
-        # If so, no subscriber will be returned above, so we delete
-        # subscriber properly.
-        if(subscriber['ResponseMetadata']['HTTPStatusCode'] == 200 and
-           'Item' not in subscriber):
-
-            delete_subscriber(subscriber_id)
-            message = {
-                "message": "500 Internal Server Error: subscriberid " +
-                           subscriber_id + " doesn't exist. The "
-                           "subscriber has been deleted properly."
-            }
-            app.logger.warning(message["message"])
-            responses.append(message)
-
-        else:
-
-            subscriber = subscriber['Item']
-
-            # Create some variables to hold the mailmerged messages.
-            message = args['message']
-            sms_message = args['sms-message']
-            html_message = args['html-message']
-
-            # Enable mail merging on subscriber attributes.
-            message = replace_keywords(message, subscriber)
-            if args['sms-message']:
-                sms_message = replace_keywords(
-                    sms_message, subscriber
-                )
-            if args['html-message']:
-                html_message = replace_keywords(
-                    html_message, subscriber
-                )
-
-            # Assemble and send the messages for each medium.
-            if 'email' in args['medium']:
-                temp = send_email(
-                    [subscriber['email']],
-                    args['subject'],
-                    message,
-                    html_message,
-                    sender=args['from']
-                )
-                temp['type'] = 'email'
-                temp['message'] = message
-                responses.append(temp)
-                destinations.append(subscriber['email'])
-
-            elif 'sms' in args['medium'] and 'sms' in subscriber:
-                temp = send_sms(
-                    subscriber['sms'],
-                    sms_message
-                )
-                temp['type'] = 'sms'
-                temp['message'] = sms_message
-                responses.append(temp)
-                destinations.append(subscriber['sms'])
-
-            elif 'slack' in args['medium'] and 'slack' in subscriber:
-                temp = slack(
-                    subscriber['slack'],
-                    message,
-                    args['subject']
-                )
-                temp['type'] = 'slack'
-                temp['message'] = message
-                responses.append(temp)
-                destinations.append(subscriber['slack'])
-
-    # Log the message
-    log_message(args['id'], {
-        'destination': destinations,
-        'medium': args['medium'],
-        'time': get_date(),
-        'message': args['message'],
-        'topics': 'Published to: ' + str(args['topics'])
-    })
-
-    return responses
-
 
 def subscribe(first_name, last_name, email,
               country, topics, sms="", slack="", verified=False):
@@ -493,3 +346,235 @@ def delete_subscriber(subscriber_id):
     return Response(response,
                     status=status,
                     mimetype=mimetype)
+
+
+def publish(args):
+    """
+    Publishes a message to a given topic set. All subscribers with
+    subscriptions to any of those topics are to receive the message.
+
+    Arguments are passed in the request data.
+
+    Args:
+        args (dictionary): Should contiain the following key/value pairs:\n
+            id (str): Required. If another message with the same ID has been
+                      logged, this one won't send. Returns a 400 Bad Request
+                      error if this is the case.\n
+            message (str): Required. The message.\n
+            topics ([str]): Required. The topics the message fits into
+                            (determines destination address/es). Accepts array
+                            of multiple topics.\n
+            medium ([str]): The medium by which to publish the message
+                            ('email', 'sms', etc...) Defaults to email. Accepts
+                            array of multiple mediums.\n
+            sms-message (str): The sms version of the message. Defaults to the
+                               same as 'message'\n
+            html-message (str): The html version of the message. Defaults to
+                                the same as 'message'\n
+            subject (str): The e-mail subject. Defaults to "".\n
+            from (str): The address from which to send the message. \n
+                        Deafults to an emro address stored in the config.
+
+    Returns:
+        An array of amazon SES and nexmo responses for each message sent.
+    """
+
+    # Set the default values for the non-required fields.
+    if not args.get('medium', ''):
+        args['medium'] = ['email']
+    if not args.get('html-message', ''):
+        args['html-message'] = args['message']
+    if not args.get('sms-message', ''):
+        args['sms-message'] = args['message']
+    if not args.get('from', ''):
+        args['from'] = app.config['SENDER']
+
+    # Load the database.
+    db = boto3.resource(
+        'dynamodb',
+        endpoint_url=app.config['DB_URL'],
+        region_name='eu-west-1'
+    )
+    subscribers_table = db.Table(app.config['SUBSCRIBERS'])
+    subscriptions_table = db.Table(app.config['SUBSCRIPTIONS'])
+
+    # Collect the subscriber IDs for all subscriptions to the given
+    # topics.
+    subscribers = []
+
+    for topic in args['topics']:
+        query_response = subscriptions_table.query(
+            IndexName='topicID-index',
+            KeyConditionExpression=Key('topicID').eq(topic)
+        )
+        for item in query_response['Items']:
+            subscribers.append(item['subscriberID'])
+
+    # Record details about the sent messages.
+    responses = []
+    destinations = []
+
+    # Send the messages to each subscriber.
+    for subscriber_id in subscribers:
+        # Get subscriber's details.
+        subscriber = subscribers_table.get_item(
+            Key={'id': subscriber_id}
+        )
+
+        # Subscriptions can get left in database without a subscriber.
+        # This can happen when someone mannually edits the database.
+        # If so, no subscriber will be returned above, so we delete
+        # subscriber properly.
+        if(subscriber['ResponseMetadata']['HTTPStatusCode'] == 200 and
+           'Item' not in subscriber):
+
+            delete_subscriber(subscriber_id)
+            message = {
+                "message": "500 Internal Server Error: subscriberid " +
+                           subscriber_id + " doesn't exist. The "
+                           "subscriber has been deleted properly."
+            }
+            app.logger.warning(message["message"])
+            responses.append(message)
+
+        else:
+
+            subscriber = subscriber['Item']
+
+            # Create some variables to hold the mailmerged messages.
+            message = args['message']
+            sms_message = args['sms-message']
+            html_message = args['html-message']
+
+            # Enable mail merging on subscriber attributes.
+            message = replace_keywords(message, subscriber)
+            if args['sms-message']:
+                sms_message = replace_keywords(
+                    sms_message, subscriber
+                )
+            if args['html-message']:
+                html_message = replace_keywords(
+                    html_message, subscriber
+                )
+
+            # Assemble and send the messages for each medium.
+            if 'email' in args['medium']:
+                temp = send_email(
+                    [subscriber['email']],
+                    args['subject'],
+                    message,
+                    html_message,
+                    sender=args['from']
+                )
+                temp['type'] = 'email'
+                temp['message'] = message
+                responses.append(temp)
+                destinations.append(subscriber['email'])
+
+            if 'sms' in args['medium'] and 'sms' in subscriber:
+                temp = send_sms(
+                    subscriber['sms'],
+                    sms_message
+                )
+                temp['type'] = 'sms'
+                temp['message'] = sms_message
+                responses.append(temp)
+                destinations.append(subscriber['sms'])
+
+            if 'slack' in args['medium'] and 'slack' in subscriber:
+                temp = slack(
+                    subscriber['slack'],
+                    message,
+                    args['subject']
+                )
+                request_status = {
+                    'message': message,
+                    'type': 'slack',
+                    'code': temp.status_code
+                }
+                responses.append(request_status)
+                destinations.append(subscriber['slack'])
+
+    # Log the message
+    log_message(args['id'], {
+        'destination': destinations,
+        'medium': args['medium'],
+        'time': get_date(),
+        'message': args['message'],
+        'topics': 'Published to: ' + str(args['topics'])
+    })
+
+    return responses
+
+
+def error(args):
+    """
+    Notify the developers of an error in the system. Error notifications
+    can be posted to slack and sent out via email and text.  These messages
+    are not subject to the rate limiting that normal published messages are
+    subject to.
+
+    Args:
+        message (str): Required. The e-mail message.\n
+        subject (str): Optional. Defaults to "Meerkat Error".\n
+        medium ([str]): Optional. A list of the following mediums: 'email',
+            'sms', 'slack'. Defaults to ['slack','email'].\n
+        sms-message (str): Optional. The sms version of the message.
+            Defaults to the same as 'message'\n
+        html-message (str): Optional. The html version of the message.
+            Defaults to the same as 'message'\n
+    Returns:
+        The amazon SES response.
+    """
+    # Set the default values for the non-required fields.
+    if not args.get('subject', ''):
+        args['subject'] = 'Meerkat Error'
+    if not args.get('medium', ''):
+        args['medium'] = ['email', 'slack']
+    if not args.get('html-message', ''):
+        args['html-message'] = args['message']
+    if not args.get('sms-message', ''):
+        args['sms-message'] = args['message']
+
+    # Publish any messages to the hot-topic error-reporting.
+    args['topics'] = app.config['ERROR_REPORTING']
+    args['id'] = 'ERROR-'+str(datetime.now().isoformat())
+
+    # Publish!
+    return publish(args)
+
+
+def notify(args):
+    """
+    Notify the developers of some change in the system. Notifications
+    are automatically sent to slack.  These messages are not subject to
+    the rate limiting that normal published messages are subject to.
+
+    Args:
+        message (str): Required. The e-mail message.\n
+        subject (str): Optional. Defaults to "Meerkat Notification".\n
+        medium ([str]): Optional. A list of the following mediums: 'email',
+            'sms', 'slack'. Defaults to ['slack'].\n
+        sms-message (str): Optional. The sms version of the message.
+            Defaults to the same as 'message'\n
+        html-message (str): Optional. The html version of the message.
+            Defaults to the same as 'message'\n
+    Returns:
+        The amazon SES response.
+    """
+    # Set the default values for the non-required fields.
+    if not args.get('subject', ''):
+        args['subject'] = 'Meerkat Notification'
+    if not args.get('medium', ''):
+        args['medium'] = ['slack']
+    if not args.get('html-message', ''):
+        args['html-message'] = args['message']
+    if not args.get('sms-message', ''):
+        args['sms-message'] = args['message']
+
+    # Publish any messages to the hot-topic notices.
+    args['topics'] = app.config['NOTIFY_DEV']
+    args['id'] = 'NOTICE-'+str(datetime.now().isoformat())
+
+    # Publish!
+    return publish(args)

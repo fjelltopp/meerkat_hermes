@@ -18,6 +18,7 @@ def require_api_key(f):
             app.logger.warning(json.loads(request.data.decode("UTF-8")))
             key = json.loads(request.data.decode("UTF-8")).get("api_key", "")
         else:
+            app.logger.warning(request.args)
             key = request.args.get("api_key", "")
 
         if(key == app.config["API_KEY"] or app.config["API_KEY"] == ""):

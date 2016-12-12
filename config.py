@@ -46,6 +46,7 @@ class Config(object):
     NEXMO_PRIVATE_KEY = ''
 
     ERROR_REPORTING = ['error-reporting']
+    NOTIFY_DEV = ['notify-dev']
 
 
 class Production(Config):

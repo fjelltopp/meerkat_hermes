@@ -201,7 +201,7 @@ if args.populate:
             user['last_name'],
             user['email'],
             'All',
-            ['test-emails', 'error-reporting'],
+            ['test-emails', 'error-reporting', 'notify-dev'],
             sms=user.get('sms', ''),
             verified=True,
             slack=user.get('slack', '')
