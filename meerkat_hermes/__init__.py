@@ -13,7 +13,7 @@ import os
 app = Flask(__name__)
 logging.warning("Config object: {}".format(
     os.getenv('CONFIG_OBJECT', 'config.Development')
-)
+))
 app.config.from_object(os.getenv('CONFIG_OBJECT', 'config.Development'))
 try:
     app.config.from_envvar('MEERKAT_HERMES_SETTINGS')
