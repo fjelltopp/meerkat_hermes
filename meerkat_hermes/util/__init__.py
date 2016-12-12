@@ -21,6 +21,7 @@ def slack(channel, message, subject=''):
 
     return "sent"
     """
+
     # Assemble the message text string
     text = str(message)
     if subject:
@@ -30,7 +31,8 @@ def slack(channel, message, subject=''):
     message = {'text': text, 'channel': channel, 'username': 'Meerkat'}
     url = ('https://hooks.slack.com/services/T050E3XPP/'
            'B0G7UKUCA/EtXIFB3CRGyey2L7x5WbT32B')
-    r = requests.post(url, json=message)
+    headers = {'Content-Type': 'application/json'}
+    r = requests.post(url, data=json.dumps(message), headers=headers)
 
     # Return the slack response
     return r
@@ -572,9 +574,13 @@ def notify(args):
     if not args.get('sms-message', ''):
         args['sms-message'] = args['message']
 
+
+
     # Publish any messages to the hot-topic notices.
     args['topics'] = app.config['NOTIFY_DEV']
     args['id'] = 'NOTICE-'+str(datetime.now().isoformat())
 
     # Publish!
     return publish(args)
+
+notify({'message': 'Quick notification.'})
