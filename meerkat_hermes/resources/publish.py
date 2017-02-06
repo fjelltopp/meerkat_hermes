@@ -9,6 +9,7 @@ from meerkat_hermes.authentication import require_api_key
 import meerkat_hermes.util as util
 import json
 import logging
+import boto3
 
 
 # This Emailer resource has just one method, which sends a given email message.
@@ -123,19 +124,6 @@ class Publish(Resource):
         return Response(json.dumps(responses),
                         status=200,
                         mimetype='application/json')
-
-"""
-This resource provides a means for notifying developers about
-errors in the system.
-"""
-from flask_restful import Resource, reqparse
-from datetime import datetime
-import uuid
-import boto3
-import json
-from flask import current_app, Response
-import meerkat_hermes.util as util
-from meerkat_hermes.authentication import require_api_key
 
 
 class Notify(Resource):

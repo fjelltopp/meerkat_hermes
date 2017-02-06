@@ -39,7 +39,7 @@ class Config(object):
 
     API_KEY = "test-hermes"
 
-    PUBLISH_RATE_LIMIT = 20
+    PUBLISH_RATE_LIMIT = int(from_env("MESSAGE RATE LIMIT", "20"))
     CALL_TIMES = []
 
     NEXMO_PUBLIC_KEY = ''
