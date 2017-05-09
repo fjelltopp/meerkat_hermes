@@ -16,6 +16,8 @@ def slack(channel, message, subject=''):
     in live deployment, otherwise sent privately to the developer via slackbot.
 
     Args:
+        channel (str): Required. The channel or username to which the message
+        should be posted.
         message (str): Required. The message to post to slack.\n
         subject (str): Optional. Placed in bold and seperated by a pipe.
 
