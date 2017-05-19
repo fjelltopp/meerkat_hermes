@@ -171,7 +171,13 @@ def log_message(messageID, details):
     table = db.Table(app.config['LOG'])
 
     details['id'] = messageID
-    response = table.put_item(Item=details)
+
+    # If the paramaeters are too large, it can cause problems.
+    try:
+        response = table.put_item(Item=details)
+    except Exception:
+        details['message'] = 'Message too large to log.'
+        response = table.put_item(Item=details)
 
     return response, 200
 
