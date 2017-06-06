@@ -5,7 +5,7 @@ update the the dynamodb table "hermes_subscribers".
 import boto3
 import json
 from flask_restful import Resource, reqparse
-from flask import current_app, Response
+from flask import current_app, Response, request
 from meerkat_hermes.authentication import require_api_key
 import meerkat_hermes.util as util
 
@@ -63,13 +63,12 @@ class Subscribe(Resource):
             slack (str): The slack username/channel.
             topics ([str]): Required. The ID's for the topics to which the
                             subscriber wishes to subscribe.\n
-            verified (bool): Are their contact details verified? Defaults to
-                             False.
+            verified (str): Are their contact details verified? Defaults to
+                             False. str is resolved to boolean.
 
         Returns:
             The amazon dynamodb response, with the assigned subscriber_id.
         """
-
         # Define an argument parser for creating a new subscriber.
         parser = reqparse.RequestParser()
         parser.add_argument('first_name', required=True,
@@ -84,12 +83,21 @@ class Subscribe(Resource):
                             help='Mobile phone number of the subscriber')
         parser.add_argument('slack', required=False, type=str,
                             help='Slack channel or username')
-        parser.add_argument('verified', required=False, type=bool,
-                            help='Are the contact details verified?')
+        parser.add_argument('verified', required=False, type=str,
+                            help='Contact details verified? "True"/"False"')
         parser.add_argument('topics', action='append', required=True, type=str,
                             help='A list of subscription topic IDs.')
 
         args = parser.parse_args()
+
+        # Can't use parser bool argument because False is resolved to True.
+        # Args are cast from text: str(False)='False' but bool('False')=True!
+        # https://github.com/flask-restful/flask-restful/issues/397
+        # Instead use str argument, where only 'True' and 'true' are True
+        if args.get('verified', '') in ['True', 'true']:
+            args['verified'] = True
+        else:
+            args['verified'] = False
 
         response = util.subscribe(
             args['first_name'],
@@ -99,7 +107,7 @@ class Subscribe(Resource):
             args['topics'],
             args.get('sms', ''),
             args.get('slack', ''),
-            args.get('verified', '')
+            args.get('verified', False)
         )
 
         return Response(json.dumps(response),
