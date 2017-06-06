@@ -1,6 +1,5 @@
 from meerkat_hermes import app
 from flask import Response
-from boto3.dynamodb.conditions import Key
 from datetime import datetime, timedelta
 import uuid
 import boto3
@@ -89,10 +88,6 @@ def subscribe(first_name, last_name, email,
     subscribers = db.Table(app.config['SUBSCRIBERS'])
     response = subscribers.put_item(Item=subscriber)
     response['subscriber_id'] = subscriber_id
-
-    # If the subscriber has already been verified, create the subscriptions.
-    if subscriber['verified']:
-        create_subscriptions(subscriber_id, topics)
 
     return response
 
@@ -278,25 +273,6 @@ def replace_keywords(message, subscriber):
     return message
 
 
-def create_subscriptions(subscriber_id, topics):
-    db = boto3.resource(
-        'dynamodb',
-        endpoint_url=app.config['DB_URL'],
-        region_name='eu-west-1'
-    )
-    table = db.Table(app.config['SUBSCRIPTIONS'])
-
-    with table.batch_writer() as batch:
-        for topic_id in topics:
-            batch.put_item(
-                Item={
-                    'subscriptionID': uuid.uuid4().hex,
-                    'topicID': topic_id,
-                    'subscriberID': subscriber_id
-                }
-            )
-
-
 def delete_subscriber(subscriber_id):
     """
     Delete a subscriber from the database. At the moment, if a user wishes to
@@ -314,7 +290,6 @@ def delete_subscriber(subscriber_id):
         region_name='eu-west-1'
     )
     subscribers = db.Table(app.config['SUBSCRIBERS'])
-    subscriptions = db.Table(app.config['SUBSCRIPTIONS'])
 
     subscribers_response = subscribers.delete_item(
         Key={
@@ -322,36 +297,16 @@ def delete_subscriber(subscriber_id):
         }
     )
 
-    # dynamoDB doesn't currently support deletions by secondary indexes
-    # it may appear in the future.
-    # Deleteing by subscriber index is therefore a two hop process.
-    # (1) Query for the primary key values i.e.topicID (2) Using topicID's,
-    # batch delete the records.
-    # TODO: My understanding has changed, there is a better way of doing this.
-    query_response = subscriptions.query(
-        IndexName='subscriberID-index',
-        KeyConditionExpression=Key('subscriberID').eq(subscriber_id)
-    )
-
-    with subscriptions.batch_writer() as batch:
-        for record in query_response['Items']:
-            batch.delete_item(
-                Key={
-                    'subscriptionID': record['subscriptionID']
-                }
-            )
-
     status = 200
     response = ("<html><body><H2>You have been "
                 "successfully unsubscribed.</H2></body</html>")
     mimetype = 'text/html'
 
     if not subscribers_response['ResponseMetadata']['HTTPStatusCode'] == 200:
-        if not query_response['ResponseMetadata']['HTTPStatusCode'] == 200:
-            status = 500
-            response = ("{'message':'500 Internal Server "
-                        "Error: Unable to complete deletion.'}")
-            mimetype = 'application/json'
+        status = 500
+        response = ("{'message':'500 Internal Server "
+                    "Error: Unable to complete deletion.'}")
+        mimetype = 'application/json'
 
     return Response(response,
                     status=status,
@@ -406,104 +361,85 @@ def publish(args):
         region_name='eu-west-1'
     )
     subscribers_table = db.Table(app.config['SUBSCRIBERS'])
-    subscriptions_table = db.Table(app.config['SUBSCRIPTIONS'])
 
-    # Collect the subscriber IDs for all subscriptions to the given
-    # topics.
-    subscribers = []
-
+    # Identify those subscribed to the given topics.
+    subscribers = {}
+    kwargs = {}
+    # Load data separately for each country - Scan can't perform OR on CONTAINS
     for topic in args['topics']:
-        query_response = subscriptions_table.query(
-            IndexName='topicID-index',
-            KeyConditionExpression=Key('topicID').eq(topic)
-        )
-        for item in query_response['Items']:
-            subscribers.append(item['subscriberID'])
+        kwargs["ScanFilter"] = {
+            'topics': {
+                'AttributeValueList': [topic],
+                'ComparisonOperator': 'CONTAINS'
+            }
+        }
+        # Get and combine the users together in a no-duplications dict.
+        for subscriber in subscribers_table.scan(**kwargs).get("Items", []):
+            subscribers[subscriber["id"]] = subscriber
+
+    app.logger.warning('SUBSCRIBERS')
+    app.logger.warning(subscribers)
 
     # Record details about the sent messages.
     responses = []
     destinations = []
 
     # Send the messages to each subscriber.
-    for subscriber_id in subscribers:
-        # Get subscriber's details.
-        subscriber = subscribers_table.get_item(
-            Key={'id': subscriber_id}
-        )
+    for subscriber_id, subscriber in subscribers.items():
 
-        # Subscriptions can get left in database without a subscriber.
-        # This can happen when someone mannually edits the database.
-        # If so, no subscriber will be returned above, so we delete
-        # subscriber properly.
-        if(subscriber['ResponseMetadata']['HTTPStatusCode'] == 200 and
-           'Item' not in subscriber):
+        # Create some variables to hold the mailmerged messages.
+        message = args['message']
+        sms_message = args['sms-message']
+        html_message = args['html-message']
 
-            delete_subscriber(subscriber_id)
-            message = {
-                "message": "500 Internal Server Error: subscriberid " +
-                           subscriber_id + " doesn't exist. The "
-                           "subscriber has been deleted properly."
+        # Enable mail merging on subscriber attributes.
+        message = replace_keywords(message, subscriber)
+        if args['sms-message']:
+            sms_message = replace_keywords(
+                sms_message, subscriber
+            )
+        if args['html-message']:
+            html_message = replace_keywords(
+                html_message, subscriber
+            )
+
+        # Assemble and send the messages for each medium.
+        if 'email' in args['medium']:
+            temp = send_email(
+                [subscriber['email']],
+                args['subject'],
+                message,
+                html_message,
+                sender=args['from']
+            )
+            temp['type'] = 'email'
+            temp['message'] = message
+            responses.append(temp)
+            destinations.append(subscriber['email'])
+
+        if 'sms' in args['medium'] and 'sms' in subscriber:
+            temp = send_sms(
+                subscriber['sms'],
+                sms_message
+            )
+            temp['type'] = 'sms'
+            temp['message'] = sms_message
+            responses.append(temp)
+            destinations.append(subscriber['sms'])
+
+        if 'slack' in args['medium'] and 'slack' in subscriber:
+            temp = slack(
+                subscriber['slack'],
+                message,
+                args['subject']
+            )
+            request_status = {
+                'message': message,
+                'type': 'slack',
+                'code': temp.status_code
             }
-            app.logger.warning(message["message"])
-            responses.append(message)
-
-        else:
-
-            subscriber = subscriber['Item']
-
-            # Create some variables to hold the mailmerged messages.
-            message = args['message']
-            sms_message = args['sms-message']
-            html_message = args['html-message']
-
-            # Enable mail merging on subscriber attributes.
-            message = replace_keywords(message, subscriber)
-            if args['sms-message']:
-                sms_message = replace_keywords(
-                    sms_message, subscriber
-                )
-            if args['html-message']:
-                html_message = replace_keywords(
-                    html_message, subscriber
-                )
-
-            # Assemble and send the messages for each medium.
-            if 'email' in args['medium']:
-                temp = send_email(
-                    [subscriber['email']],
-                    args['subject'],
-                    message,
-                    html_message,
-                    sender=args['from']
-                )
-                temp['type'] = 'email'
-                temp['message'] = message
-                responses.append(temp)
-                destinations.append(subscriber['email'])
-
-            if 'sms' in args['medium'] and 'sms' in subscriber:
-                temp = send_sms(
-                    subscriber['sms'],
-                    sms_message
-                )
-                temp['type'] = 'sms'
-                temp['message'] = sms_message
-                responses.append(temp)
-                destinations.append(subscriber['sms'])
-
-            if 'slack' in args['medium'] and 'slack' in subscriber:
-                temp = slack(
-                    subscriber['slack'],
-                    message,
-                    args['subject']
-                )
-                request_status = {
-                    'message': message,
-                    'type': 'slack',
-                    'code': temp.status_code
-                }
-                responses.append(request_status)
-                destinations.append(subscriber['slack'])
+            responses.append(request_status)
+            destinations.append(subscriber['slack'])
 
     # Log the message
     log_message(args['id'], {

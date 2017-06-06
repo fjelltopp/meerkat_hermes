@@ -64,7 +64,6 @@ if args.clear:
     try:
         print('Cleaning the dev db.')
         response = db.Table(app.config['SUBSCRIBERS']).delete()
-        response = db.Table(app.config['SUBSCRIPTIONS']).delete()
         response = db.Table(app.config['LOG']).delete()
         print('Cleaned the db.')
     except Exception as e:
@@ -110,47 +109,6 @@ if args.setup:
     )
     print("Table {} status: {}".format(
         app.config['SUBSCRIBERS'],
-        response['TableDescription'].get('TableStatus')
-    ))
-
-    response = db.create_table(
-        TableName=app.config['SUBSCRIPTIONS'],
-        AttributeDefinitions=[
-            {'AttributeName': 'subscriptionID', 'AttributeType': 'S'},
-            {'AttributeName': 'subscriberID', 'AttributeType': 'S'},
-            {'AttributeName': 'topicID', 'AttributeType': 'S'}
-        ],
-        GlobalSecondaryIndexes=[{
-            'IndexName': 'topicID-index',
-            'KeySchema': [{
-                'AttributeName': 'topicID',
-                'KeyType': 'HASH'
-            }],
-            'Projection': {'ProjectionType': 'ALL'},
-            'ProvisionedThroughput': {
-                'ReadCapacityUnits': 1,
-                'WriteCapacityUnits': 1
-            }
-        }, {
-            'IndexName': 'subscriberID-index',
-            'KeySchema': [{
-                'AttributeName': 'subscriberID',
-                'KeyType': 'HASH'
-            }],
-            'Projection': {'ProjectionType': 'ALL'},
-            'ProvisionedThroughput': {
-                'ReadCapacityUnits': 1,
-                'WriteCapacityUnits': 1
-            }
-        }],
-        KeySchema=[{'AttributeName': 'subscriptionID', 'KeyType': 'HASH'}],
-        ProvisionedThroughput={
-            'ReadCapacityUnits': 5,
-            'WriteCapacityUnits': 5
-        }
-    )
-    print("Table {} status: {}".format(
-        app.config['SUBSCRIPTIONS'],
         response['TableDescription'].get('TableStatus')
     ))
 
@@ -235,14 +193,6 @@ if args.list:
                 ))
         else:
             print("No subscribers exist.")
-
-        # List subscriptions.
-        subscriptions = db.Table(app.config['SUBSCRIPTIONS'])
-        subscriptions = subscriptions.scan().get("Items", [])
-        if subscriptions:
-            print("{} subscriptions created".format(len(subscriptions)))
-        else:
-            print("No subscriptions exist.")
 
         # List log.
         log = db.Table(app.config['LOG'])
