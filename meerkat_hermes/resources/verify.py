@@ -152,8 +152,9 @@ class Verify(Resource):
 
             topics = subscriber['Item']['topics']
 
+            # TODO: No longer create subscriptions.
             # Create the subscriptions
-            util.create_subscriptions(subscriber_id, topics)
+            # util.create_subscriptions(subscriber_id, topics)
 
             # Update the verified field and delete the code attribute.
             self.subscribers.update_item(

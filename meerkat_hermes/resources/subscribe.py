@@ -1,9 +1,6 @@
 """
 This class manages the Subscriber database field.  It includes methods to
-update the the dynamodb tables "hermes_subscribers" and "hermes_subscriptions".
-Conceptually, there are subscribers, there are topics (in "hermes_topics"
-table), and there are subscriptions which map between subscribers and topics
-using their id fields.
+update the the dynamodb table "hermes_subscribers".
 """
 import boto3
 import json
@@ -13,21 +10,19 @@ from meerkat_hermes.authentication import require_api_key
 import meerkat_hermes.util as util
 
 
-# The Subscriber resource has two methods - to create and delete a user.
 class Subscribe(Resource):
 
-    # Require authentication
+    # Require authentication to access this resource
     decorators = [require_api_key]
 
     def __init__(self):
-        # Load the database and tables, upon object creation.
+        # Load the database and tables once upon object creation.
         db = boto3.resource(
             'dynamodb',
             endpoint_url=current_app.config['DB_URL'],
             region_name='eu-west-1'
         )
         self.subscribers = db.Table(current_app.config['SUBSCRIBERS'])
-        self.subscriptions = db.Table(current_app.config['SUBSCRIPTIONS'])
 
     def get(self, subscriber_id):
         """

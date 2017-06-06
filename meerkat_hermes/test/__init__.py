@@ -175,44 +175,6 @@ class MeerkatHermesTestCase(unittest.TestCase):
         self.assertEquals(delete_response['ResponseMetadata'][
                           'HTTPStatusCode'], 200)
 
-    def test_util_create_subscriptions(self):
-        """
-        Test the create subscriptions utility function.
-        """
-
-        query_response = self.subscriptions.query(
-            IndexName='topicID-index',
-            KeyConditionExpression=Key('topicID').eq('Test1')
-        )
-        print('Test1')
-        print(query_response)
-
-        # Create the test subscriptions
-        subscriber_id = 'TESTSUBSCRIBERID'
-        util.create_subscriptions(subscriber_id, self.subscriber['topics'])
-
-        # For each topic subscription create, check that a subscription exists
-        # for the right subscriber
-        for topic in self.subscriber['topics']:
-            query_response = self.subscriptions.query(
-                IndexName='topicID-index',
-                KeyConditionExpression=Key('topicID').eq(topic)
-            )
-            print(topic)
-            print(query_response)
-            self.assertEquals(len(query_response['Items']), 1)
-            self.assertEquals(query_response['Items'][0][
-                              'subscriberID'], subscriber_id)
-
-            # Delete the subscriptions so the database is kept clean.
-            with self.subscriptions.batch_writer() as batch:
-                for item in query_response['Items']:
-                    batch.delete_item(
-                        Key={
-                            'subscriptionID': item['subscriptionID']
-                        }
-                    )
-
     def test_util_check_date(self):
         """Test the create subscriptions utility function."""
         self.assertEquals(
@@ -536,25 +498,6 @@ class MeerkatHermesTestCase(unittest.TestCase):
         self.assertEquals(len(put_response), 0)
         self.assertFalse(mock_sms_response.called)
 
-        # Add a subscription without a subscriber, to check that the faulty
-        # data is properly handled.
-        self.subscriptions.put_item(
-            Item={
-                "subscriberID": "TESTID",
-                "subscriptionID": "TESTSUBSCRIPTION",
-                "topicID": "Test4"
-            }
-        )
-        message['id'] = "testID1b"
-        message_ids.append(message['id'])
-        put_response = self.app.put('/publish', data=message)
-        put_response = json.loads(put_response.data.decode('UTF-8'))
-        print("Put response: " + str(put_response))
-
-        # One response informing us that the subscriber TESTID is deleted.
-        self.assertEquals(len(put_response), 1)
-        self.assertFalse(mock_sms_response.called)
-
         # Publish the test message to topic Test3.
         message['topics'] = ['Test3']
         message['id'] = "testID2"
@@ -567,6 +510,7 @@ class MeerkatHermesTestCase(unittest.TestCase):
         # Only subscriber 4 has subscription to 'Test3'.
         # Subscriber 4 hasn't given an SMS number, so only one email is sent.
         # Check only one email is sent and no sms calls are made.
+        print(put_response)
         self.assertEquals(len(put_response), 1)
         self.assertFalse(mock_sms_response.called)
         self.assertEquals(put_response[0]['Destination'][
@@ -596,14 +540,15 @@ class MeerkatHermesTestCase(unittest.TestCase):
         print("Response to publishing message to topic: " +
               str(message['topics']) + "\n" + str(put_response))
 
-        # Sub 1 subscribed to 'Test1' and 'Test2' so gets sms and email twice.
+        # Sub 1 subscribed to 'Test1' and 'Test2' but only gets 1 sms & email.
         # Sub 2 subscribed to 'Test1' but no sms, so gets just one email.
         # Sub 3 subscribed to 'Test2' so gets one email and one sms message.
+        # Note that the publish resource removes duplications for subscriber 1.
         # This results in 4 messages to sub 1, 1 to sub 2, and 2 to sub 3.
         # Check number of messages sent is 7 and that sms mock has been called
-        # ANOTHER 3 times.
-        self.assertEquals(len(put_response), 7)
-        self.assertTrue(mock_sms_response.call_count == 4)
+        # ANOTHER 2 times (i.e. called 1+2=3 times in total)
+        self.assertEquals(len(put_response), 5)
+        self.assertTrue(mock_sms_response.call_count == 3)
 
         # Delete the logs.
         for message_id in message_ids:
@@ -614,8 +559,9 @@ class MeerkatHermesTestCase(unittest.TestCase):
             self.app.delete('/subscribe/' + subscriber_id)
 
         # Test whether the publish resources squashes requests when they exceed
-        # the rate limit.
-        app.config['PUBLISH_RATE_LIMIT'] = 5
+        # the rate limit.  Already called 4 times so set the limit to 4 and
+        # check that a 5th attempt to publish fails....
+        app.config['PUBLISH_RATE_LIMIT'] = 4
         message['topics'] = ['Test4']
         message['id'] = "testID1"
         message_ids.append(message['id'])
