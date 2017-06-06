@@ -361,8 +361,10 @@ class MeerkatHermesTestCase(unittest.TestCase):
         delete_response = self.app.delete('/log/' + log['id'])
         delete_response = json.loads(delete_response.data.decode('UTF-8'))
         print(delete_response)
-        self.assertEquals(delete_response['ResponseMetadata'][
-                          'HTTPStatusCode'], 200)
+        self.assertEquals(
+            delete_response['ResponseMetadata']['HTTPStatusCode'],
+            200
+        )
 
     @mock.patch('meerkat_hermes.util.urllib.request.urlopen')
     def test_sms_resource(self, request_mock):
@@ -438,23 +440,31 @@ class MeerkatHermesTestCase(unittest.TestCase):
 
         # Createfour test subscribers, each with subscriptions to a different
         # list of topics.
-        topic_lists = [['Test1', 'Test2'], ['Test1'], ['Test2'], ['Test3']]
+        topic_lists = [
+            ['Test1', 'Test2'],
+            ['Test1'],
+            ['Test2'],
+            ['Test3'],
+            ['Test1']
+        ]
         subscriber_ids = []
 
-        for topics in topic_lists:
+        for i in range(0, len(topic_lists)):
             # Create a variation on the test subscriber
             subscriber = self.subscriber.copy()
-            subscriber['topics'] = topics
-            subscriber['verified'] = True
-            subscriber['first_name'] += str(topic_lists.index(topics))
-            # Remove the SMS field from two of the subscribers
-            if(topic_lists.index(topics) % 2 != 0):
+            subscriber['topics'] = topic_lists[i]
+            subscriber['first_name'] += str(i)
+            # Remove the SMS field from three of the subscribers
+            if(i % 2 != 0):
                 del subscriber['sms']
+            # Create an unverified subscriber
+            if i is not 4:
+                subscriber['verified'] = True
             # Add the subscriber to the database.
             subscribe_response = self.app.put('/subscribe', data=subscriber)
             subscriber_ids.append(json.loads(
-                subscribe_response.data.decode('UTF-8'))['subscriber_id'])
-
+                subscribe_response.data.decode('UTF-8')
+            )['subscriber_id'])
         # Create the mock SMS response.
         dummyResponse = {
             "message-count": "1",
@@ -526,6 +536,7 @@ class MeerkatHermesTestCase(unittest.TestCase):
               str(message['topics']) + "\n" + str(put_response))
 
         # Subscriber 1 and 2 have subscriptions to 'Test1'.
+        # Subscriber 5 is unverified so gets no messages.
         # Subscriber 2 hasn't given an SMS number, so 2 emails and 1 sms sent.
         # Check three messages sent in total and sms mock called once.
         self.assertEquals(len(put_response), 3)
@@ -542,7 +553,8 @@ class MeerkatHermesTestCase(unittest.TestCase):
 
         # Sub 1 subscribed to 'Test1' and 'Test2' but only gets 1 sms & email.
         # Sub 2 subscribed to 'Test1' but no sms, so gets just one email.
-        # Sub 3 subscribed to 'Test2' so gets one email and one sms message.
+        # Sub 3 subscribed to 'Test2' gets 1 email and sms.
+        # Sub 5 subscriber to 'Test1' but unverified so gets no messages.
         # Note that the publish resource removes duplications for subscriber 1.
         # This results in 4 messages to sub 1, 1 to sub 2, and 2 to sub 3.
         # Check number of messages sent is 7 and that sms mock has been called

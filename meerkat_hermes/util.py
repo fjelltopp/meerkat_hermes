@@ -58,6 +58,7 @@ def subscribe(first_name, last_name, email,
         verified (bool): Are their contact details verified? Defaults to
                          False.
     """
+
     # Assign the new subscriber a unique id.
     subscriber_id = uuid.uuid4().hex
 
@@ -371,14 +372,17 @@ def publish(args):
             'topics': {
                 'AttributeValueList': [topic],
                 'ComparisonOperator': 'CONTAINS'
+            },
+            'verified': {
+                'AttributeValueList': [True],
+                'ComparisonOperator': 'EQ'
             }
         }
         # Get and combine the users together in a no-duplications dict.
         for subscriber in subscribers_table.scan(**kwargs).get("Items", []):
             subscribers[subscriber["id"]] = subscriber
 
-    app.logger.warning('SUBSCRIBERS')
-    app.logger.warning(subscribers)
+    print('\nSUBSCRIBERS: ' + str(subscribers))
 
     # Record details about the sent messages.
     responses = []
