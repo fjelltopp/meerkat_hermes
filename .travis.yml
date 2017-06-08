@@ -15,7 +15,7 @@ install:
 - git clone https://github.com/meerkat-code/meerkat_libs.git
 - pip install -r meerkat_libs/requirements.txt
 - export PYTHONPATH=$PYTHONPATH:$HOME/build/meerkat-code/meerkat_libs/
-- cd meerkat_api/
+- cd meerkat_hermes/
 script: nosetests --logging-level=WARNING
 notifications:
   slack:
