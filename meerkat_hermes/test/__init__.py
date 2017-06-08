@@ -74,7 +74,6 @@ class MeerkatHermesTestCase(unittest.TestCase):
         # Keep track of # of deletions to log as a warning so dev can check.
         deletedObjects = {
             "subscribers": 0,
-            "subscriptions": 0,
             "messages": 0
         }
 
@@ -93,21 +92,6 @@ class MeerkatHermesTestCase(unittest.TestCase):
                     }
                 )
         deletedObjects['subscribers'] = len(query_response['Items'])
-
-        # Get rid of any undeleted subscriptions
-        for topic in (self.subscriber['topics'] + ["Test4"]):
-            query_response = self.subscriptions.query(
-                IndexName='topicID-index',
-                KeyConditionExpression=Key('topicID').eq(topic)
-            )
-            with self.subscriptions.batch_writer() as batch:
-                for record in query_response['Items']:
-                    batch.delete_item(
-                        Key={
-                            'subscriptionID': record['subscriptionID']
-                        }
-                    )
-            deletedObjects['subscriptions'] += len(query_response['Items'])
 
         # Get rid of any test messages that have been logged and not deleted.
         query_response = self.log.query(
