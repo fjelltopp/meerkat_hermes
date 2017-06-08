@@ -8,9 +8,7 @@ verified, to make their subscriptions active.
 import boto3
 import json
 from flask_restful import Resource, reqparse
-import meerkat_hermes.util as util
 from flask import current_app, Response
-from boto3.dynamodb.conditions import Key
 from meerkat_hermes.authentication import require_api_key
 
 
@@ -27,7 +25,6 @@ class Verify(Resource):
             region_name='eu-west-1'
         )
         self.subscribers = db.Table(current_app.config['SUBSCRIBERS'])
-        self.subscriptions = db.Table(current_app.config['SUBSCRIPTIONS'])
 
     def put(self):
         """
@@ -123,8 +120,7 @@ class Verify(Resource):
 
     def get(self, subscriber_id):
         """
-        Creates the subscriptions and sets the subscriber's "verified"
-        attribute to True.
+        Sets the subscriber's "verified" attribute to True.
 
         Args:
              subscriber_id (str): The ID for the subscriber who has been
@@ -135,12 +131,6 @@ class Verify(Resource):
              verificaiton was successful e.g. {"message":"Subscriber verified"}
         """
 
-        # Check subscriberID doesn't exist in subscriptions already
-        exists = self.subscriptions.query(
-            IndexName='subscriberID-index',
-            KeyConditionExpression=Key('subscriberID').eq(subscriber_id)
-        )
-
         # Get subscriber details.
         subscriber = self.subscribers.get_item(
             Key={
@@ -148,13 +138,7 @@ class Verify(Resource):
             }
         )
 
-        if not (exists['Items'] or subscriber['Item']['verified']):
-
-            topics = subscriber['Item']['topics']
-
-            # TODO: No longer create subscriptions.
-            # Create the subscriptions
-            # util.create_subscriptions(subscriber_id, topics)
+        if not subscriber['Item']['verified']:
 
             # Update the verified field and delete the code attribute.
             self.subscribers.update_item(
