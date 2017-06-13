@@ -1,0 +1,56 @@
+"""
+This resource provides a simple means of sending a given e-mail message to
+given e-mail addresses.
+"""
+from flask_restful import Resource, reqparse
+import uuid
+import boto3
+import json
+from flask import current_app, Response
+import meerkat_hermes.util as util
+from meerkat_hermes.authentication import require_api_key
+
+class Gcm(Resource):
+
+	# Require authentication
+    decorators = [require_api_key]
+
+    def put(self):
+        """
+        Send an GCM message
+        First parse the given arguments to check it is a valid email.
+
+        Arguments are passed in the request data.
+
+        Args:
+            message (str): Required. The message payload.\n
+            destination (str): destination subscriber id or topic for the message.\n
+
+        Returns:
+            The Google Cloud Messaging server response.
+        """
+
+        # Define an argument parser for creating a valid GCM message.
+        parser = reqparse.RequestParser()
+        parser.add_argument('message', required=True,
+                            type=str, help='The message payload')
+        parser.add_argument('destination', required=True, action='append', type=str,
+                            help='The destination address')
+        args = parser.parse_args()
+
+        response = util.send_gcm(destination, message)
+
+        message_id = 'G' + uuid.uuid4().hex
+
+        util.log_message(message_id, {
+            'destination': args['destination'],
+            'medium': ['gcm'],
+            'time': util.get_date(),
+            'message': args['message']
+        })
+
+        response['log_id'] = message_id
+
+        return Response(json.dumps(response),
+                        status=response['ResponseMetadata']['HTTPStatusCode'],
+                        mimetype='application/json')

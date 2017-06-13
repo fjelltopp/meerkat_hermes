@@ -149,7 +149,7 @@ def send_gcm(destination, message):
     Sends a notification to a tablet running the Collect app using a GCM subscription id
 
     Args:
-        destination ([str]): Required. The GCM subscriber ID to send\n
+        destination ([str]): Required. The GCM subscriber ID or topic to send\n
         message (str): Required. The message to be sent. \n
 
     Returns:
@@ -162,7 +162,6 @@ def send_gcm(destination, message):
     response = requests.post(app.config['GCM_API_URL'], data=payload, headers=headers)
 
     return response
-
 
 def log_message(messageID, details):
     """
