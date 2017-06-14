@@ -155,10 +155,12 @@ def send_gcm(destination, message):
     Returns:
         The Google Cloud Messaging server response.
     """
+    headers = { "Content-Type": "application/json"}
 
-    headers = { "Content-Type": "application/json",
-                "Authorization":"key=" + app.config['GCM_AUTHENTICATION_KEY']}
-    payload = { "data": {"message": message}, "to" : destination}
+    headers["Authorization"]="key=" + app.config['GCM_AUTHENTICATION_KEY']
+
+    payload = { "data": {"message": message}, "to" : destination, "dry_run": app.config['GCM_DRY_RUN']}
+
     response = requests.post(app.config['GCM_API_URL'], data=json.dumps(payload), headers=headers)
 
     return response

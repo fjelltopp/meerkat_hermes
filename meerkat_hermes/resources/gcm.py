@@ -39,7 +39,10 @@ class Gcm(Resource):
         args = parser.parse_args()
 
         response = util.send_gcm(args['destination'], args['message'])
-        response_dict = json.loads(response.text)
+        if response.status_code == 200:
+            response_dict = json.loads(response.text)
+        else: 
+            response_dict = {"message":response.text}
 
         message_id = 'G' + uuid.uuid4().hex
 
@@ -51,6 +54,8 @@ class Gcm(Resource):
         })
 
         response_dict['log_id'] = message_id
+
+        print("DEBUG: RESPONDING")
 
         return Response(json.dumps(response_dict),
                         status=response.status_code,
