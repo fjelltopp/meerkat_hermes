@@ -159,7 +159,7 @@ def send_gcm(destination, message):
     headers = { "Content-Type": "application/json",
                 "Authorization":"key=" + app.config['GCM_AUTHENTICATION_KEY']}
     payload = { "data": {"message": message}, "to" : destination}
-    response = requests.post(app.config['GCM_API_URL'], data=payload, headers=headers)
+    response = requests.post(app.config['GCM_API_URL'], data=json.dumps(payload), headers=headers)
 
     return response
 

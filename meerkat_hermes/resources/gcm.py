@@ -18,13 +18,13 @@ class Gcm(Resource):
     def put(self):
         """
         Send an GCM message
-        First parse the given arguments to check it is a valid email.
+        First parse the given arguments to check it is a valid GCM message.
 
         Arguments are passed in the request data.
 
         Args:
             message (str): Required. The message payload.\n
-            destination (str): destination subscriber id or topic for the message.\n
+            destination (str): Required. Destination subscriber id or topic for the message.\n
 
         Returns:
             The Google Cloud Messaging server response.
@@ -34,11 +34,12 @@ class Gcm(Resource):
         parser = reqparse.RequestParser()
         parser.add_argument('message', required=True,
                             type=str, help='The message payload')
-        parser.add_argument('destination', required=True, action='append', type=str,
+        parser.add_argument('destination', required=True, type=str,
                             help='The destination address')
         args = parser.parse_args()
 
-        response = util.send_gcm(destination, message)
+        response = util.send_gcm(args['destination'], args['message'])
+        response_dict = json.loads(response.text)
 
         message_id = 'G' + uuid.uuid4().hex
 
@@ -49,8 +50,11 @@ class Gcm(Resource):
             'message': args['message']
         })
 
-        response['log_id'] = message_id
+        response_dict['log_id'] = message_id
 
-        return Response(json.dumps(response),
-                        status=response['ResponseMetadata']['HTTPStatusCode'],
+        return Response(json.dumps(response_dict),
+                        status=response.status_code,
                         mimetype='application/json')
+
+    def get(self):
+    	return "Meerkat Google Cloud Messaging service"
