@@ -48,7 +48,6 @@ class Config(object):
     ERROR_REPORTING = ['error-reporting']
     NOTIFY_DEV = ['notify-dev']
 
-    GCM_DRY_RUN = from_env('GCM_DRY_RUN', True)
     GCM_API_URL = "https://gcm-http.googleapis.com/gcm/send"
     GCM_AUTHENTICATION_KEY = ''
 
