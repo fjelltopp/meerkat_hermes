@@ -38,7 +38,24 @@ class Gcm(Resource):
                             help='The destination address')
         args = parser.parse_args()
 
-        response = util.send_gcm(args['destination'], args['message'])
+        # If the request is a topic, check that the topic is allowed
+        if args['destination'].startswith('/topics/'):
+            if args['destination'] not in current_app.config['GCM_ALLOWED_TOPICS']:
+                return Response(json.dumps({'message':'Topic ' + args['destination'] + ' not allowed'}),
+                    status = 403,
+                    mimetype='application/json')
+                    
+        # Return dummy response based on environment variable
+        if current_app.config['GCM_MOCK_RESPONSE_ONLY']:
+            return Response(json.dumps({'message':'Mock response from Hermes GCM API',
+                                        'destination':args['destination'],
+                                        'message_content':args['message']}),
+                            status = 200,
+                            mimetype='application/json')
+        else:
+            response = util.send_gcm(args['destination'], args['message'])
+
+        # Handle response status codes
         if response.status_code == 200:
             response_dict = json.loads(response.text)
         else: 
