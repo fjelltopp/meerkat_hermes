@@ -55,8 +55,6 @@ class Gcm(Resource):
 
         response_dict['log_id'] = message_id
 
-        print("DEBUG: RESPONDING")
-
         return Response(json.dumps(response_dict),
                         status=response.status_code,
                         mimetype='application/json')
