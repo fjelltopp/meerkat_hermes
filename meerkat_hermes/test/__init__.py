@@ -11,6 +11,8 @@ from datetime import datetime
 import meerkat_hermes.util as util
 import meerkat_hermes
 from meerkat_hermes import app
+from flask import Response
+import requests
 import json
 import unittest
 import boto3
@@ -404,6 +406,64 @@ class MeerkatHermesTestCase(unittest.TestCase):
             }
         )
         self.assertEquals(log_response['Item']['destination'][0], sms['sms'])
+
+        # Delete the message from the log
+        self.app.delete('/log/' + put_response['log_id'])
+
+    @mock.patch('meerkat_hermes.util.requests.post')
+    def test_gcm_resource(self, request_mock):
+        """
+        Test the GCM resource PUT method, using the fake response returned
+        by util.send_gcm().
+        """
+
+        gcm = {
+            "message": self.message['message'],
+            "destination": '/topics/demo'
+        }
+
+        # Create the mock response.
+        dummyResponseDict = {
+            "multicast_id":123456,
+            "success":1,
+            "failure":0,
+            "canonical_ids":0,
+            "results":[{"message_id":"0:abc123"}]
+        }
+
+        dummyResponse = requests.Response()
+        dummyResponse.status_code = 200
+        dummyResponse._content = json.dumps(dummyResponseDict).encode()
+        request_mock.return_value = dummyResponse
+
+        # Test PUT method.
+        put_response = self.app.put('/gcm', data=gcm)
+        put_response = json.loads(put_response.data.decode('UTF-8'))
+
+        call_data = {
+            "data":
+            {"message": self.message['message']}, 
+            "to": "/topics/demo"}
+
+        call_headers={
+            'Content-Type': 'application/json', 
+            'Authorization': 'key='+app.config['GCM_AUTHENTICATION_KEY']}
+
+        self.assertTrue(request_mock.called)
+        request_mock.assert_called_with('https://gcm-http.googleapis.com/gcm/send', 
+            data=json.dumps(call_data), 
+            headers=call_headers)
+
+        self.assertEquals(put_response['success'], 1)
+
+        # Check that the message has been logged properly.
+        log_response = self.log.get_item(
+            Key={
+                'id': put_response['log_id']
+            }
+        )
+        print(str(log_response))
+        self.assertEquals(log_response['Item']['destination'], gcm['destination'])
 
         # Delete the message from the log
         self.app.delete('/log/' + put_response['log_id'])
