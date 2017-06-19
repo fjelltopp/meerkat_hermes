@@ -6,7 +6,7 @@ from flask_restful import Resource, reqparse
 import uuid
 import boto3
 import json
-from flask import current_app, Response
+from flask import current_app, Response, jsonify
 import meerkat_hermes.util as util
 from meerkat_hermes.authentication import require_api_key
 
@@ -46,7 +46,7 @@ class Gcm(Resource):
                     mimetype='application/json')
                     
         # Return dummy response based on environment variable
-        if current_app.config['GCM_MOCK_RESPONSE_ONLY']:
+        if current_app.config['GCM_MOCK_RESPONSE_ONLY']==1:
             return Response(json.dumps({'message':'Mock response from Hermes GCM API',
                                         'destination':args['destination'],
                                         'message_content':args['message']}),
@@ -57,9 +57,9 @@ class Gcm(Resource):
 
         # Handle response status codes
         if response.status_code == 200:
-            response_dict = json.loads(response.text)
+            response_dict = json.loads(response.get_data())
         else: 
-            response_dict = {"message":response.text}
+            response_dict = {"message":str(response.get_data())}
 
         message_id = 'G' + uuid.uuid4().hex
 
@@ -70,7 +70,7 @@ class Gcm(Resource):
             'message': args['message']
         })
 
-        response_dict['log_id'] = message_id
+        response_dict.update({'log_id':message_id})
 
         return Response(json.dumps(response_dict),
                         status=response.status_code,

@@ -163,7 +163,10 @@ def send_gcm(destination, message):
 
     response = requests.post(app.config['GCM_API_URL'], data=json.dumps(payload), headers=headers)
 
-    return response
+    return Response(response.text,
+            status = response.status_code,
+            mimetype='application/json'
+        )
 
 def log_message(messageID, details):
     """
