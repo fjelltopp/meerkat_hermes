@@ -144,6 +144,29 @@ def send_email(destination, subject, message, html, sender):
 
     return response
 
+def send_gcm(destination, message):
+    """
+    Sends a notification to a tablet running the Collect app using a GCM subscription id
+
+    Args:
+        destination ([str]): Required. The GCM subscriber ID or topic to send\n
+        message (str): Required. The message to be sent. \n
+
+    Returns:
+        The Google Cloud Messaging server response.
+    """
+    headers = { "Content-Type": "application/json"}
+
+    headers["Authorization"]="key=" + app.config['GCM_AUTHENTICATION_KEY']
+
+    payload = { "data": {"message": message}, "to" : destination}
+
+    response = requests.post(app.config['GCM_API_URL'], data=json.dumps(payload), headers=headers)
+
+    return Response(response.text,
+            status = response.status_code,
+            mimetype='application/json'
+        )
 
 def log_message(messageID, details):
     """

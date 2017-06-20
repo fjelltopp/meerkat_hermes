@@ -27,6 +27,7 @@ logging.warning('App loaded')
 from meerkat_hermes.resources.subscribe import Subscribe
 from meerkat_hermes.resources.email import Email
 from meerkat_hermes.resources.sms import Sms
+from meerkat_hermes.resources.gcm import Gcm
 from meerkat_hermes.resources.publish import Publish, Error, Notify
 from meerkat_hermes.resources.log import Log
 from meerkat_hermes.resources.verify import Verify
@@ -36,6 +37,7 @@ from meerkat_hermes.resources.unsubscribe import Unsubscribe
 api.add_resource(Subscribe, "/subscribe", "/subscribe/<string:subscriber_id>")
 api.add_resource(Email, "/email")
 api.add_resource(Sms, "/sms")
+api.add_resource(Gcm, "/gcm")
 api.add_resource(Publish, "/publish")
 api.add_resource(Error, "/error")
 api.add_resource(Notify, "/notify")

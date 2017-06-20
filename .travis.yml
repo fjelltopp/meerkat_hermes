@@ -1,6 +1,6 @@
 language: python
 python:
-- '3.5'
+- '3.6'
 env:
   global:
   - MEERKAT_HERMES_SETTINGS="/home/travis/build/meerkat-code/meerkat_hermes/secret.cfg"
