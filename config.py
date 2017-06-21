@@ -56,8 +56,8 @@ class Config(object):
 class Production(Config):
     PRODUCTION = True
     DB_URL = from_env("DB_URL", "https://dynamodb.eu-west-1.amazonaws.com")
-    GCM_DRYRUN = True
     GCM_MOCK_RESPONSE_ONLY = 0
+    GCM_ALLOWED_TOPICS = ['/topics/demo','/topics/jordan','/topics/madagascar','/topics/somalia','/topics/somaliland','/topics/puntland']
 
 
 class Development(Config):
