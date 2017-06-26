@@ -48,10 +48,16 @@ class Config(object):
     ERROR_REPORTING = ['error-reporting']
     NOTIFY_DEV = ['notify-dev']
 
+    GCM_API_URL = "https://gcm-http.googleapis.com/gcm/send"
+    GCM_AUTHENTICATION_KEY = ''
+    GCM_ALLOWED_TOPICS = ['/topics/demo']
+    GCM_MOCK_RESPONSE_ONLY = 1
 
 class Production(Config):
     PRODUCTION = True
     DB_URL = from_env("DB_URL", "https://dynamodb.eu-west-1.amazonaws.com")
+    GCM_MOCK_RESPONSE_ONLY = 0
+    GCM_ALLOWED_TOPICS = ['/topics/demo','/topics/jordan','/topics/madagascar','/topics/somalia','/topics/somaliland','/topics/puntland']
 
 
 class Development(Config):
@@ -66,3 +72,4 @@ class Testing(Config):
     SUBSCRIPTIONS = 'test_hermes_subscriptions'
     LOG = 'test_hermes_log'
     DB_URL = "https://dynamodb.eu-west-1.amazonaws.com"
+    GCM_MOCK_RESPONSE_ONLY = 0
