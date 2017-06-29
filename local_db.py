@@ -146,27 +146,30 @@ if args.populate:
 
     print('Populating the hermes dev db.')
 
-    # Get developer accounts to be inserted into local database.
-    path = (os.path.dirname(os.path.realpath(__file__)) +
-            '/../.settings/accounts.cfg')
-    users_file = open(path, 'r+').read()
-    users = ast.literal_eval(users_file) if users_file else {}
+    try:
+        # Get developer accounts to be inserted into local database.
+        path = (os.path.dirname(os.path.realpath(__file__)) +
+                '/../.settings/accounts.cfg')
+        users_file = open(path, 'r+').read()
+        users = ast.literal_eval(users_file) if users_file else {}
 
-    # Create the subscriptions for the developer's accounts.
-    for username, user in users.items():
-        util.subscribe(
-            user['first_name'],
-            user['last_name'],
-            user['email'],
-            'All',
-            ['test-emails', 'error-reporting', 'notify-dev'],
-            sms=user.get('sms', ''),
-            verified=True,
-            slack=user.get('slack', '')
-        )
-        print('Added subscriber: {} {}'.format(
-            user['first_name'], user['last_name']
-        ))
+        # Create the subscriptions for the developer's accounts.
+        for username, user in users.items():
+            util.subscribe(
+                user['first_name'],
+                user['last_name'],
+                user['email'],
+                'All',
+                ['test-emails', 'error-reporting', 'notify-dev'],
+                sms=user.get('sms', ''),
+                verified=True,
+                slack=user.get('slack', '')
+            )
+            print('Added subscriber: {} {}'.format(
+                user['first_name'], user['last_name']
+            ))
+    except FileNotFoundError:
+        print('No developer account details available.')
 
     print('Populated dev db.')
 
