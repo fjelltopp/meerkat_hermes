@@ -107,42 +107,50 @@ def send_email(destination, subject, message, html, sender):
                       address. Defaults to the config file SENDER value.
 
     Returns:
-        The Amazon SES response.
+        The Amazon SES response. If email fails, returns a response look-a-like
+        object that contains the failiure error message.
     """
 
-    # Load the email client
     client = boto3.client('ses', region_name='eu-west-1')
 
     if(not html):
         html = message.replace('\n', '<br />')
 
-    response = client.send_email(
-        Source=sender,
-        Destination={
-            'ToAddresses': destination
-        },
-        Message={
-            'Subject': {
-                'Data': subject,
-                'Charset': app.config['CHARSET']
+    try:
+        response = client.send_email(
+            Source=sender,
+            Destination={
+                'ToAddresses': destination
             },
-            'Body': {
-                'Text': {
-                    'Data': message,
+            Message={
+                'Subject': {
+                    'Data': subject,
                     'Charset': app.config['CHARSET']
                 },
-                'Html': {
-                    'Data': html,
-                    'Charset': app.config['CHARSET']
+                'Body': {
+                    'Text': {
+                        'Data': message,
+                        'Charset': app.config['CHARSET']
+                    },
+                    'Html': {
+                        'Data': html,
+                        'Charset': app.config['CHARSET']
+                    }
                 }
             }
-        }
-    )
+        )
+        response['SesMessageId'] = response.pop('MessageId')
+        response['Destination'] = destination
+        return response
 
-    response['SesMessageId'] = response.pop('MessageId')
-    response['Destination'] = destination
-
-    return response
+    except Exception as e:
+        msg = "Failed to send email \"{}\" to: {}\n{}".format(
+            subject,
+            destination,
+            e
+        )
+        app.logger.error(msg)
+        return {'ResponseMetadata': {'error': msg, 'HTTPStatusCode': 400}}
 
 
 def send_gcm(destination, message):
