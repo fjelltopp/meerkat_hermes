@@ -107,46 +107,56 @@ def send_email(destination, subject, message, html, sender):
                       address. Defaults to the config file SENDER value.
 
     Returns:
-        The Amazon SES response.
+        The Amazon SES response. If email fails, returns a response look-a-like
+        object that contains the failiure error message.
     """
 
-    # Load the email client
     client = boto3.client('ses', region_name='eu-west-1')
 
     if(not html):
         html = message.replace('\n', '<br />')
 
-    response = client.send_email(
-        Source=sender,
-        Destination={
-            'ToAddresses': destination
-        },
-        Message={
-            'Subject': {
-                'Data': subject,
-                'Charset': app.config['CHARSET']
+    try:
+        response = client.send_email(
+            Source=sender,
+            Destination={
+                'ToAddresses': destination
             },
-            'Body': {
-                'Text': {
-                    'Data': message,
+            Message={
+                'Subject': {
+                    'Data': subject,
                     'Charset': app.config['CHARSET']
                 },
-                'Html': {
-                    'Data': html,
-                    'Charset': app.config['CHARSET']
+                'Body': {
+                    'Text': {
+                        'Data': message,
+                        'Charset': app.config['CHARSET']
+                    },
+                    'Html': {
+                        'Data': html,
+                        'Charset': app.config['CHARSET']
+                    }
                 }
             }
-        }
-    )
+        )
+        response['SesMessageId'] = response.pop('MessageId')
+        response['Destination'] = destination
+        return response
 
-    response['SesMessageId'] = response.pop('MessageId')
-    response['Destination'] = destination
+    except Exception as e:
+        msg = "Failed to send email \"{}\" to: {}\n{}".format(
+            subject,
+            destination,
+            e
+        )
+        app.logger.error(msg)
+        return {'ResponseMetadata': {'error': msg, 'HTTPStatusCode': 400}}
 
-    return response
 
 def send_gcm(destination, message):
     """
-    Sends a notification to a tablet running the Collect app using a GCM subscription id
+    Sends a notification to a tablet running the Collect app using a GCM
+    subscription id
 
     Args:
         destination ([str]): Required. The GCM subscriber ID or topic to send\n
@@ -155,18 +165,24 @@ def send_gcm(destination, message):
     Returns:
         The Google Cloud Messaging server response.
     """
-    headers = { "Content-Type": "application/json"}
+    headers = {"Content-Type": "application/json"}
 
-    headers["Authorization"]="key=" + app.config['GCM_AUTHENTICATION_KEY']
+    headers["Authorization"] = "key=" + app.config['GCM_AUTHENTICATION_KEY']
 
-    payload = { "data": {"message": message}, "to" : destination}
+    payload = {"data": {"message": message}, "to": destination}
 
-    response = requests.post(app.config['GCM_API_URL'], data=json.dumps(payload), headers=headers)
+    response = requests.post(
+        app.config['GCM_API_URL'],
+        data=json.dumps(payload),
+        headers=headers
+    )
 
-    return Response(response.text,
-            status = response.status_code,
-            mimetype='application/json'
-        )
+    return Response(
+        response.text,
+        status=response.status_code,
+        mimetype='application/json'
+    )
+
 
 def log_message(messageID, details):
     """
