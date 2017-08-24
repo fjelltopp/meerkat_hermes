@@ -5,6 +5,7 @@ Root Flask app for the Meerkat Hermes messaging module.
 """
 from flask import Flask
 from flask_restful import Api
+from raven.contrib.flask import Sentry
 import boto3
 import logging
 import os
@@ -21,6 +22,12 @@ except FileNotFoundError:
     logging.warning("No secret settings specified.")
 api = Api(app)
 logging.warning('App loaded')
+
+# Set up sentry error monitoring
+if app.config["SENTRY_DNS"]:
+    sentry = Sentry(app, dsn=app.config["SENTRY_DNS"])
+else:
+    sentry = None
 
 # Import the API resources
 # Import them after creating the app, because they depend upon the app.
