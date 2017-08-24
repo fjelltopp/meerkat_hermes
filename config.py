@@ -33,6 +33,8 @@ class Config(object):
     DB_URL = from_env("DB_URL", "http://dynamodb:8000")
     ROOT_URL = from_env("MEERKAT_HERMES_ROOT", "/hermes")
 
+    SENTRY_DNS = os.environ.get('SENTRY_DNS', '')
+
     SENDER = 'Notifications <notifications@emro.info>'
     CHARSET = 'UTF-8'
     FROM = 'Meerkat'
@@ -53,11 +55,19 @@ class Config(object):
     GCM_ALLOWED_TOPICS = ['/topics/demo']
     GCM_MOCK_RESPONSE_ONLY = 1
 
+
 class Production(Config):
     PRODUCTION = True
     DB_URL = from_env("DB_URL", "https://dynamodb.eu-west-1.amazonaws.com")
     GCM_MOCK_RESPONSE_ONLY = 0
-    GCM_ALLOWED_TOPICS = ['/topics/demo','/topics/jordan','/topics/madagascar','/topics/somalia','/topics/somaliland','/topics/puntland']
+    GCM_ALLOWED_TOPICS = [
+        '/topics/demo',
+        '/topics/jordan',
+        '/topics/madagascar',
+        '/topics/somalia',
+        '/topics/somaliland',
+        '/topics/puntland'
+    ]
 
 
 class Development(Config):
