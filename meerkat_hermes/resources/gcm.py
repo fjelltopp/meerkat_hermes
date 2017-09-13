@@ -64,7 +64,7 @@ class Gcm(Resource):
 
         # Handle response status codes
         if response.status_code == 200:
-            response_dict = json.loads(response.get_data())
+            response_dict = json.loads(response.get_data().decode('UTF-8'))
         else:
             response_dict = {"message": str(response.get_data())}
 
