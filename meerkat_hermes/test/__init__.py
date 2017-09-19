@@ -352,8 +352,8 @@ class MeerkatHermesTestCase(unittest.TestCase):
             200
         )
 
-    @mock.patch('meerkat_hermes.util.boto3.client')
-    def test_sms_resource(self, sns_mock):
+    @mock.patch('meerkat_hermes.util.urllib.request.urlopen')
+    def test_sms_resource(self, request_mock):
         """
         Test the SMS resource PUT method, using the fake response returned
         by util.send_sms().
@@ -365,46 +365,39 @@ class MeerkatHermesTestCase(unittest.TestCase):
         }
 
         # Create the mock response.
-        sns_mock.return_value.publish.return_value = {
-            "ResponseMetadata": {
-                "RequestId": "c13d1005-2433-55e0-91bc-4236210aa11c",
-                "HTTPStatusCode": 200,
-                "HTTPHeaders": {
-                    "x-amzn-requestid": "c13d1005-2433-55e0-91bc-4236210aa11c",
-                    "content-type": "text/xml",
-                    "date": "Wed, 13 Sep 2017 10:05:45 GMT",
-                    "content-length": "294"
-                },
-                "RetryAttempts": 0
-            },
-            "log_id": "G2c820c31a05b4da593c689bd8c534c82",
-            "MessageId": "edd4bd71-9ecf-5ebc-9d5c-ef429bf6da40"
+        dummyResponse = {
+            "message-count": "1",
+            "messages": [{
+                "message-id": "TEST-MESSAGE-ID",
+                "message-price": "0.03330000",
+                "network": "0000",
+                "remaining-balance": "3.58010000",
+                "status": "0",
+                "to": sms['sms']
+            }]
         }
+        dummyResponse = json.dumps(dummyResponse)
+        dummyResponse = BytesIO(dummyResponse.encode())
+        request_mock.return_value = dummyResponse
 
         # Test PUT method.
         put_response = self.app.put('/sms', data=sms)
         put_response = json.loads(put_response.data.decode('UTF-8'))
 
-        self.assertTrue(sns_mock.return_value.publish)
-        sns_mock.return_value.publish.assert_called_with(
-            Message=sms['message'],
-            PhoneNumber=sms['sms'],
-            MessageAttributes={
-                'AWS.SNS.SMS.SenderID': {
-                    'DataType': 'String',
-                    'StringValue': app.config['FROM']
-                }
-            }
-        )
+        params = {
+            'api_key': app.config['NEXMO_PUBLIC_KEY'],
+            'api_secret': app.config['NEXMO_PRIVATE_KEY'],
+            'to': sms['sms'],
+            'from': app.config['FROM'],
+            'text': sms['message']
+        }
 
-        self.assertEquals(
-            put_response['ResponseMetadata']['RetryAttempts'],
-            0
-        )
-        self.assertEquals(
-            put_response['ResponseMetadata']['HTTPStatusCode'],
-            200
-        )
+        self.assertTrue(request_mock.called)
+        request_mock.assert_called_with('https://rest.nexmo.com/sms/json?' +
+                                        urllib.parse.urlencode(params))
+
+        self.assertEquals(put_response['messages'][0]['status'], '0')
+        self.assertEquals(put_response['messages'][0]['to'], sms['sms'])
 
         # Check that the message has been logged properly.
         log_response = self.log.get_item(
@@ -449,16 +442,16 @@ class MeerkatHermesTestCase(unittest.TestCase):
 
         call_data = {
             "data":
-            {"message": self.message['message']},
+            {"message": self.message['message']}, 
             "to": "/topics/demo"}
 
         call_headers={
-            'Content-Type': 'application/json',
+            'Content-Type': 'application/json', 
             'Authorization': 'key='+app.config['GCM_AUTHENTICATION_KEY']}
 
         self.assertTrue(request_mock.called)
-        request_mock.assert_called_with('https://gcm-http.googleapis.com/gcm/send',
-            data=json.dumps(call_data),
+        request_mock.assert_called_with('https://gcm-http.googleapis.com/gcm/send', 
+            data=json.dumps(call_data), 
             headers=call_headers)
 
         self.assertEquals(put_response['success'], 1)
@@ -475,8 +468,8 @@ class MeerkatHermesTestCase(unittest.TestCase):
         # Delete the message from the log
         self.app.delete('/log/' + put_response['log_id'])
 
-    @mock.patch('meerkat_hermes.util.boto3.client')
-    def test_publish_resource(self, boto_mock):
+    @mock.patch('meerkat_hermes.util.urllib.request.urlopen')
+    def test_publish_resource(self, mock_sms_response):
         """Test the Publish resource PUT method."""
 
         def clones(object, times=None):
@@ -516,39 +509,22 @@ class MeerkatHermesTestCase(unittest.TestCase):
             subscriber_ids.append(json.loads(
                 subscribe_response.data.decode('UTF-8')
             )['subscriber_id'])
+        # Create the mock SMS response.
+        dummyResponse = {
+            "message-count": "1",
+            "messages": [{
+                "message-id": "TEST-MESSAGE-ID",
+                "message-price": "0.03330000",
+                "network": "0000",
+                "remaining-balance": "3.58010000",
+                "status": "0",
+                "to": self.subscriber['sms']
+            }]
+        }
 
-        # Create the mock response.
-        boto_mock.return_value.publish.side_effect = clones({
-            "ResponseMetadata": {
-                "RequestId": "c13d1005-2433-55e0-91bc-4236210aa11c",
-                "HTTPStatusCode": 200,
-                "HTTPHeaders": {
-                    "x-amzn-requestid": "c13d1005-2433-55e0-91bc-4236210aa11c",
-                    "content-type": "text/xml",
-                    "date": "Wed, 13 Sep 2017 10:05:45 GMT",
-                    "content-length": "294"
-                },
-                "RetryAttempts": 0
-            },
-            "log_id": "G2c820c31a05b4da593c689bd8c534c82",
-            "MessageId": "edd4bd71-9ecf-5ebc-9d5c-ef429bf6da40"
-        })
-
-        boto_mock.return_value.send_email.side_effect = clones({
-            "MessageId": "0102015e7afbfec3-cf8df94b-81bc-4c9b5966a4-000000",
-            "ResponseMetadata": {
-                "RequestId": "270fa909-9876-11e7-a0db-e3a14f067914",
-                "HTTPStatusCode": 200,
-                "HTTPHeaders": {
-                    "x-amzn-requestid": "270fa909-9876-11e7-a0db-e3a14f067914",
-                    "content-type": "text/xml",
-                    "date": "Wed, 13 Sep 2017 11:24:48 GMT",
-                    "content-length": "326"
-                },
-                "RetryAttempts": 0
-            },
-            "log_id": "G891694c3d4364f89bb124e31bfb15b58",
-        })
+        dummyResponse = json.dumps(dummyResponse)
+        dummyResponse = BytesIO(dummyResponse.encode())
+        mock_sms_response.side_effect = clones(dummyResponse)
 
         # Create the message.
         message = self.message.copy()
@@ -574,7 +550,7 @@ class MeerkatHermesTestCase(unittest.TestCase):
         # Check that no messages have been sent and that the sms response has
         # not been called.
         self.assertEquals(len(put_response), 0)
-        self.assertFalse(boto_mock.return_value.publish.called)
+        self.assertFalse(mock_sms_response.called)
 
         # Publish the test message to topic Test3.
         message['topics'] = ['Test3']
@@ -590,7 +566,7 @@ class MeerkatHermesTestCase(unittest.TestCase):
         # Check only one email is sent and no sms calls are made.
         print(put_response)
         self.assertEquals(len(put_response), 1)
-        self.assertFalse(boto_mock.return_value.publish.called)
+        self.assertFalse(mock_sms_response.called)
         self.assertEquals(put_response[0]['Destination'][
                           0], self.subscriber['email'])
 
@@ -608,7 +584,7 @@ class MeerkatHermesTestCase(unittest.TestCase):
         # Subscriber 2 hasn't given an SMS number, so 2 emails and 1 sms sent.
         # Check three messages sent in total and sms mock called once.
         self.assertEquals(len(put_response), 3)
-        self.assertTrue(boto_mock.return_value.publish.call_count == 1)
+        self.assertTrue(mock_sms_response.call_count == 1)
 
         # Publish the test message to both topics Test1 and Test2.
         message['topics'] = ['Test1', 'Test2']
@@ -628,7 +604,7 @@ class MeerkatHermesTestCase(unittest.TestCase):
         # Check number of messages sent is 7 and that sms mock has been called
         # ANOTHER 2 times (i.e. called 1+2=3 times in total)
         self.assertEquals(len(put_response), 5)
-        self.assertTrue(boto_mock.return_value.publish.call_count == 3)
+        self.assertTrue(mock_sms_response.call_count == 3)
 
         # Delete the logs.
         for message_id in message_ids:

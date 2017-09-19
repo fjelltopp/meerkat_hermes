@@ -236,27 +236,26 @@ def limit_exceeded():
 
 def send_sms(destination, message):
     """
-    Sends an sms message using AWS SNS.
+    Sends an sms message using Nexmo.
 
     Args:
         destination (str): Required. The sms number to send to.\n
         message (str): Required. The message to be sent.
 
     Returns:
-        The AWS response.
+        The Nexmo response.
     """
+    params = {
+        'api_key': app.config['NEXMO_PUBLIC_KEY'],
+        'api_secret': app.config['NEXMO_PRIVATE_KEY'],
+        'to': destination,
+        'from': app.config['FROM'],
+        'text': message
+    }
 
-    client = boto3.client('sns', region_name='eu-west-1')
-    response = client.publish(
-        PhoneNumber=destination,
-        Message=message,
-        MessageAttributes={
-            'AWS.SNS.SMS.SenderID': {
-                'DataType': 'String',
-                'StringValue': app.config['FROM']
-            }
-        }
-    )
+    url = 'https://rest.nexmo.com/sms/json?' + urllib.parse.urlencode(params)
+    response = urllib.request.urlopen(url)
+    response = json.loads(response.read().decode('UTF-8'))
     return response
 
 
