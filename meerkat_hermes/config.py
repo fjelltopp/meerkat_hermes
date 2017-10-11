@@ -6,21 +6,6 @@ Configuration and settings
 import os
 
 
-def from_env(env_var, default):
-    """
-    Gets value from envrionment variable or uses default
-
-    Args:
-        env_var: name of envrionment variable
-        default: the default value
-    """
-    new = os.environ.get(env_var)
-    if new:
-        return new
-    else:
-        return default
-
-
 class Config(object):
     DEBUG = False
     TESTING = False
@@ -30,8 +15,8 @@ class Config(object):
     SUBSCRIPTIONS = 'hermes_subscriptions'
     LOG = 'hermes_log'
 
-    DB_URL = from_env("DB_URL", "http://dynamodb:8000")
-    ROOT_URL = from_env("MEERKAT_HERMES_ROOT", "/hermes")
+    DB_URL = os.environ.get("DB_URL", "http://dynamodb:8000")
+    ROOT_URL = os.environ.get("MEERKAT_HERMES_ROOT", "/hermes")
 
     SENTRY_DNS = os.environ.get('SENTRY_DNS', '')
 
@@ -41,7 +26,7 @@ class Config(object):
 
     API_KEY = "test-hermes"
 
-    PUBLISH_RATE_LIMIT = int(from_env("MESSAGE RATE LIMIT", "40"))
+    PUBLISH_RATE_LIMIT = int(os.environ.get("MESSAGE RATE LIMIT", "40"))
     CALL_TIMES = []
 
     NEXMO_PUBLIC_KEY = ''
@@ -58,7 +43,10 @@ class Config(object):
 
 class Production(Config):
     PRODUCTION = True
-    DB_URL = from_env("DB_URL", "https://dynamodb.eu-west-1.amazonaws.com")
+    DB_URL = os.environ.get(
+        "DB_URL",
+        "https://dynamodb.eu-west-1.amazonaws.com"
+    )
     GCM_MOCK_RESPONSE_ONLY = 0
     GCM_ALLOWED_TOPICS = [
         '/topics/demo',
