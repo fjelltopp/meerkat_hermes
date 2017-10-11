@@ -1,7 +1,8 @@
 """
 config.py
 
-Configuration and settings
+Configuration and settings.
+Kept inside the packages code so it can be easily imported within the package.
 """
 import os
 
@@ -39,10 +40,13 @@ class Config(object):
     GCM_MOCK_RESPONSE_ONLY = 1
 
     ACCESS = [['hermes'], ['meerkat']]
+    LOGGING_LEVEL = os.environ.get('LOGGING_LEVEL', 'INFO')
+    LOGGING_FORMAT = '%(levelname)s - %(message)s'
 
 
 class Production(Config):
     PRODUCTION = True
+    LOGGING_FORMAT = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
     DB_URL = os.environ.get(
         "DB_URL",
         "https://dynamodb.eu-west-1.amazonaws.com"

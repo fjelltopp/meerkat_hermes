@@ -14,19 +14,22 @@ import os
 
 # Create the Flask app
 app = Flask(__name__)
-logging.info("Config object: {}".format(
-    os.getenv('CONFIG_OBJECT', 'config.Development')
-))
-app.config.from_object(os.getenv(
-    'CONFIG_OBJECT',
-    'meerkat_hermes.config.Development'
-))
-try:
-    app.config.from_envvar('MEERKAT_HERMES_SETTINGS')
-except FileNotFoundError:
-    logging.warning("No secret settings specified.")
+config_object = os.getenv('CONFIG_OBJECT', 'meerkat_hermes.config.Development')
+app.config.from_object(config_object)
 api = Api(app)
-logging.warning('App loaded')
+
+# Confgure the logging
+logger = logging.getLogger("meerkat_hermes")
+if not logger.handlers:
+    log_format = app.config['LOGGING_FORMAT']
+    handler = logging.StreamHandler()
+    formatter = logging.Formatter(log_format)
+    handler.setFormatter(formatter)
+    level_name = app.config["LOGGING_LEVEL"]
+    level = logging.getLevelName(level_name)
+    logger.setLevel(level)
+    logger.addHandler(handler)
+logger.info('App loaded with {} config object.'.format(config_object))
 
 # Set up sentry error monitoring
 if app.config["SENTRY_DNS"]:
