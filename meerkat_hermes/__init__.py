@@ -16,7 +16,6 @@ import os
 app = Flask(__name__)
 config_object = os.getenv('CONFIG_OBJECT', 'meerkat_hermes.config.Development')
 app.config.from_object(config_object)
-api = Api(app)
 
 # Confgure the logging
 logger = logging.getLogger("meerkat_hermes")
@@ -30,6 +29,14 @@ if not logger.handlers:
     logger.setLevel(level)
     logger.addHandler(handler)
 logger.info('App loaded with {} config object.'.format(config_object))
+
+# Load any secret settings
+try:
+    app.config.from_envvar('MEERKAT_HERMES_SETTINGS')
+except FileNotFoundError:
+    logger.warning("No secret settings specified.")
+
+api = Api(app)
 
 # Set up sentry error monitoring
 if app.config["SENTRY_DNS"]:
