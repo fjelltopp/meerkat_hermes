@@ -5,15 +5,12 @@ update the the dynamodb table "hermes_subscribers".
 import boto3
 import json
 from flask_restful import Resource, reqparse
-from flask import current_app, Response, request
-from meerkat_hermes.authentication import require_api_key
+from flask import current_app, Response
+from meerkat_libs.auth_client import auth
 import meerkat_hermes.util as util
 
 
 class Subscribe(Resource):
-
-    # Require authentication to access this resource
-    decorators = [require_api_key]
 
     def __init__(self):
         # Load the database and tables once upon object creation.
@@ -24,6 +21,7 @@ class Subscribe(Resource):
         )
         self.subscribers = db.Table(current_app.config['SUBSCRIBERS'])
 
+    @auth.authorise(['hermes'], ['meerkat'])
     def get(self, subscriber_id):
         """
         Get a subscriber's info from the database.
@@ -44,6 +42,7 @@ class Subscribe(Resource):
                         status=response['ResponseMetadata']['HTTPStatusCode'],
                         mimetype='application/json')
 
+    @auth.authorise(['hermes'], ['meerkat'])
     def put(self):
         """
         Add a new subscriber. Parse the given arguments to check it is a valid
@@ -114,7 +113,7 @@ class Subscribe(Resource):
                         status=response['ResponseMetadata']['HTTPStatusCode'],
                         mimetype='application/json')
 
-    @require_api_key
+    @auth.authorise(['hermes'], ['meerkat'])
     def delete(self, subscriber_id):
         """
         Delete a subscriber from the database.

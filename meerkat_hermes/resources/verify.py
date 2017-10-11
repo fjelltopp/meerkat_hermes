@@ -9,13 +9,10 @@ import boto3
 import json
 from flask_restful import Resource, reqparse
 from flask import current_app, Response
-from meerkat_hermes.authentication import require_api_key
+from meerkat_libs.auth_client import auth
 
 
 class Verify(Resource):
-
-    # Require authentication
-    decorators = [require_api_key]
 
     def __init__(self):
         # Load the database and tables, upon object creation.
@@ -26,6 +23,7 @@ class Verify(Resource):
         )
         self.subscribers = db.Table(current_app.config['SUBSCRIBERS'])
 
+    @auth.authorise(['hermes'], ['meerkat'])
     def put(self):
         """
         Puts a new verify code into the verify attribute. This can then be
@@ -67,6 +65,7 @@ class Verify(Resource):
                         status=response['ResponseMetadata']['HTTPStatusCode'],
                         mimetype='application/json')
 
+    @auth.authorise(['hermes'], ['meerkat'])
     def post(self):
         """
         Given a verify code, this method returns a boolean saying whether the
@@ -118,6 +117,7 @@ class Verify(Resource):
                 mimetype='application/json'
             )
 
+    @auth.authorise(['hermes'], ['meerkat'])
     def get(self, subscriber_id):
         """
         Sets the subscriber's "verified" attribute to True.

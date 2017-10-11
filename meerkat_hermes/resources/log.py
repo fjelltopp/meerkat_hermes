@@ -6,14 +6,11 @@ import boto3
 import json
 from flask_restful import Resource
 from flask import Response, current_app
-from meerkat_hermes.authentication import require_api_key
+from meerkat_libs.auth_client import auth
 
 
 # The Subscriber resource has two methods - create and delete user.
 class Log(Resource):
-
-    # Require authentication
-    decorators = [require_api_key]
 
     def __init__(self):
         # Load the database and tables, upon object creation.
@@ -24,6 +21,7 @@ class Log(Resource):
         )
         self.log = db.Table(current_app.config['LOG'])
 
+    @auth.authorise(['hermes'], ['meerkat'])
     def get(self, log_id):
         """
         Get message log records from the database.
@@ -50,6 +48,7 @@ class Log(Resource):
                             status=200,
                             mimetype="application/json")
 
+    @auth.authorise(['hermes'], ['meerkat'])
     def delete(self, log_id):
         """
         Delete a log record from the database.

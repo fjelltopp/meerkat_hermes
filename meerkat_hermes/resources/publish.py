@@ -5,7 +5,7 @@ primary function of meerkat hermes.
 """
 from flask_restful import Resource, reqparse
 from flask import current_app, Response
-from meerkat_hermes.authentication import require_api_key
+from meerkat_libs.auth_client import auth
 import meerkat_hermes.util as util
 import json
 import logging
@@ -15,9 +15,7 @@ import boto3
 # This Emailer resource has just one method, which sends a given email message.
 class Publish(Resource):
 
-    # Require authentication
-    decorators = [require_api_key]
-
+    @auth.authorise(['hermes'], ['meerkat'])
     def put(self):
         """
         Publish a message to a given topic set. All subscribers with
@@ -128,9 +126,6 @@ class Publish(Resource):
 
 class Notify(Resource):
 
-    # Require authentication
-    decorators = [require_api_key]
-
     def __init__(self):
         # Load the database and tables, upon object creation.
         db = boto3.resource(
@@ -140,6 +135,7 @@ class Notify(Resource):
         )
         self.subscribers = db.Table(current_app.config['SUBSCRIBERS'])
 
+    @auth.authorise(['hermes'], ['meerkat'])
     def put(self):
         """
         Notify the developers of some change in the system. Notifications
@@ -184,9 +180,6 @@ class Notify(Resource):
 
 class Error(Resource):
 
-    # Require authentication
-    decorators = [require_api_key]
-
     def __init__(self):
         # Load the database and tables, upon object creation.
         db = boto3.resource(
@@ -196,6 +189,7 @@ class Error(Resource):
         )
         self.subscribers = db.Table(current_app.config['SUBSCRIBERS'])
 
+    @auth.authorise(['hermes'], ['meerkat'])
     def put(self):
         """
         Notify the developers of an error in the system. Error notifications

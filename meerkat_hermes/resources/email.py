@@ -8,14 +8,11 @@ import boto3
 import json
 from flask import current_app, Response
 import meerkat_hermes.util as util
-from meerkat_hermes.authentication import require_api_key
+from meerkat_libs.auth_client import auth
 
 
 # This simple Emailer resource has just one method, which sends a given email.
 class Email(Resource):
-
-    # Require authentication
-    decorators = [require_api_key]
 
     def __init__(self):
         # Load the database and tables, upon object creation.
@@ -26,6 +23,7 @@ class Email(Resource):
         )
         self.subscribers = db.Table(current_app.config['SUBSCRIBERS'])
 
+    @auth.authorise(['hermes'], ['meerkat'])
     def put(self):
         """
         Send an email with Amazon SES.
