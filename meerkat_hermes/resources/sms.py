@@ -3,17 +3,17 @@ This resource provides a simple means of sending a given e-mail message to
 given e-mail addresses.
 """
 from flask_restful import Resource, reqparse
-from meerkat_libs.auth_client import auth
+from meerkat_hermes import authorise
 from flask import Response
 import meerkat_hermes.util as util
 import json
 import uuid
 
 
-# This testing resource has just one method, which sends a given text message.
 class Sms(Resource):
 
-    @auth.authorise(['hermes'], ['meerkat'])
+    decorators = [authorise]
+
     def put(self):
         """
         Send an sms message with Nexmo.

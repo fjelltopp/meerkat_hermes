@@ -3,16 +3,17 @@ This resource provides a simple means of sending a given e-mail message to
 given e-mail addresses.
 """
 from flask_restful import Resource, reqparse
+from flask import current_app, Response
+from meerkat_hermes import authorise
+import meerkat_hermes.util as util
 import uuid
 import boto3
 import json
-from flask import current_app, Response
-import meerkat_hermes.util as util
-from meerkat_libs.auth_client import auth
 
 
-# This simple Emailer resource has just one method, which sends a given email.
 class Email(Resource):
+
+    decorators = [authorise]
 
     def __init__(self):
         # Load the database and tables, upon object creation.
@@ -23,7 +24,6 @@ class Email(Resource):
         )
         self.subscribers = db.Table(current_app.config['SUBSCRIBERS'])
 
-    @auth.authorise(['hermes'], ['meerkat'])
     def put(self):
         """
         Send an email with Amazon SES.

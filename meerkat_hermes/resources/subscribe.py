@@ -2,15 +2,17 @@
 This class manages the Subscriber database field.  It includes methods to
 update the the dynamodb table "hermes_subscribers".
 """
+from flask_restful import Resource, reqparse
+from flask import Response, current_app
+from meerkat_hermes import authorise
+import meerkat_hermes.util as util
 import boto3
 import json
-from flask_restful import Resource, reqparse
-from flask import current_app, Response
-from meerkat_libs.auth_client import auth
-import meerkat_hermes.util as util
 
 
 class Subscribe(Resource):
+
+    decorators = [authorise]
 
     def __init__(self):
         # Load the database and tables once upon object creation.
@@ -21,7 +23,6 @@ class Subscribe(Resource):
         )
         self.subscribers = db.Table(current_app.config['SUBSCRIBERS'])
 
-    @auth.authorise(['hermes'], ['meerkat'])
     def get(self, subscriber_id):
         """
         Get a subscriber's info from the database.
@@ -33,6 +34,7 @@ class Subscribe(Resource):
         """
         current_app.logger.warning(
             'Get subcriber called.  subscriber_id: ' + subscriber_id)
+        current_app.logger.warning(current_app.config['ACCESS'])
         response = self.subscribers.get_item(
             Key={
                 'id': subscriber_id
@@ -42,7 +44,6 @@ class Subscribe(Resource):
                         status=response['ResponseMetadata']['HTTPStatusCode'],
                         mimetype='application/json')
 
-    @auth.authorise(['hermes'], ['meerkat'])
     def put(self):
         """
         Add a new subscriber. Parse the given arguments to check it is a valid
@@ -68,6 +69,7 @@ class Subscribe(Resource):
         Returns:
             The amazon dynamodb response, with the assigned subscriber_id.
         """
+        current_app.logger.warning(current_app.config['ACCESS'])
         # Define an argument parser for creating a new subscriber.
         parser = reqparse.RequestParser()
         parser.add_argument('first_name', required=True,
@@ -113,7 +115,6 @@ class Subscribe(Resource):
                         status=response['ResponseMetadata']['HTTPStatusCode'],
                         mimetype='application/json')
 
-    @auth.authorise(['hermes'], ['meerkat'])
     def delete(self, subscriber_id):
         """
         Delete a subscriber from the database.

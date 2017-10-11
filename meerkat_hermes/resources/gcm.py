@@ -7,12 +7,13 @@ import uuid
 import json
 from flask import current_app, Response
 import meerkat_hermes.util as util
-from meerkat_libs.auth_client import auth
+from meerkat_hermes import authorise
 
 
 class Gcm(Resource):
 
-    @auth.authorise(['hermes'], ['meerkat'])
+    decorators = [authorise]
+
     def put(self):
         """
         Send an GCM message

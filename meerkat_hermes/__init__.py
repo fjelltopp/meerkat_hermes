@@ -6,6 +6,8 @@ Root Flask app for the Meerkat Hermes messaging module.
 from flask import Flask
 from flask_restful import Api
 from raven.contrib.flask import Sentry
+from functools import wraps
+from meerkat_libs.auth_client import auth
 import boto3
 import logging
 import os
@@ -31,6 +33,21 @@ if app.config["SENTRY_DNS"]:
     sentry = Sentry(app, dsn=app.config["SENTRY_DNS"])
 else:
     sentry = None
+
+
+# A decorator used to wrap up the authroisation process.
+# This appears to be simplest way of putting access configs in app config.
+def authorise(f):
+    """
+    @param f: flask function
+    @return: decorator, return the wrapped function or abort json object.
+    """
+    @wraps(f)
+    def decorated(*args, **kwargs):
+            auth.check_auth(*app.config['ACCESS'])
+            return f(*args, **kwargs)
+    return decorated
+
 
 # Import the API resources
 # Import them after creating the app, because they depend upon the app.

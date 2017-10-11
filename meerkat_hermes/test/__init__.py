@@ -6,18 +6,15 @@ Unit tests for Meerkat Hermes util methods and resource classes.
 """
 from boto3.dynamodb.conditions import Key
 from unittest import mock
-from io import BytesIO
 from datetime import datetime
 import meerkat_hermes.util as util
 import meerkat_hermes
 from meerkat_hermes import app
-from flask import Response
 import requests
 import json
 import unittest
 import boto3
 import logging
-import urllib
 import copy
 import time
 
@@ -45,7 +42,7 @@ class MeerkatHermesTestCase(unittest.TestCase):
     def setup_class(self):
         """Setup for testing"""
 
-        app.config.from_object('config.Testing')
+        app.config.from_object('meerkat_hermes.config.Testing')
         self.app = meerkat_hermes.app.test_client()
 
         # Load the database
@@ -181,7 +178,7 @@ class MeerkatHermesTestCase(unittest.TestCase):
         """
         Test the Subscribe resource, including the PUT, GET and DELETE methods.
         """
-
+        logging.warning(app.config)
         # Create the test subscriber
         put_response = self.app.put('/subscribe', data=self.subscriber)
         self.assertEquals(put_response.status_code, 200)

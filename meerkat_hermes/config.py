@@ -65,7 +65,7 @@ class Development(Config):
 
 class Testing(Config):
     TESTING = True
-    ACCESS = [[""], [""]]
+    ACCESS = [[], []]
     SUBSCRIBERS = 'test_hermes_subscribers'
     SUBSCRIPTIONS = 'test_hermes_subscriptions'
     LOG = 'test_hermes_log'
