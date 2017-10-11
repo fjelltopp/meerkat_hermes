@@ -32,9 +32,6 @@ class Subscribe(Resource):
         Returns:
              The amazon dynamodb response.
         """
-        current_app.logger.warning(
-            'Get subcriber called.  subscriber_id: ' + subscriber_id)
-        current_app.logger.warning(current_app.config['ACCESS'])
         response = self.subscribers.get_item(
             Key={
                 'id': subscriber_id
@@ -69,7 +66,6 @@ class Subscribe(Resource):
         Returns:
             The amazon dynamodb response, with the assigned subscriber_id.
         """
-        current_app.logger.warning(current_app.config['ACCESS'])
         # Define an argument parser for creating a new subscriber.
         parser = reqparse.RequestParser()
         parser.add_argument('first_name', required=True,

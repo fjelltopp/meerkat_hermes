@@ -1,9 +1,8 @@
-from meerkat_hermes import app
+from meerkat_hermes import app, logger
 from flask import Response
 from datetime import datetime, timedelta
 import uuid
 import boto3
-import urllib
 import time
 import json
 import requests
@@ -149,7 +148,7 @@ def send_email(destination, subject, message, html, sender):
             destination,
             e
         )
-        app.logger.error(msg)
+        logger.error(msg)
         return {'ResponseMetadata': {'error': msg, 'HTTPStatusCode': 400}}
 
 
