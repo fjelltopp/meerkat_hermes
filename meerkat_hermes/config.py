@@ -24,8 +24,6 @@ class Config(object):
     CHARSET = 'UTF-8'
     FROM = 'Meerkat'
 
-    API_KEY = "test-hermes"
-
     PUBLISH_RATE_LIMIT = int(os.environ.get("MESSAGE RATE LIMIT", "40"))
     CALL_TIMES = []
 
@@ -39,6 +37,8 @@ class Config(object):
     GCM_AUTHENTICATION_KEY = ''
     GCM_ALLOWED_TOPICS = ['/topics/demo']
     GCM_MOCK_RESPONSE_ONLY = 1
+
+    ACCESS = [['hermes'], ['meerkat']]
 
 
 class Production(Config):
@@ -65,7 +65,7 @@ class Development(Config):
 
 class Testing(Config):
     TESTING = True
-    API_KEY = ""
+    ACCESS = [[""], [""]]
     SUBSCRIBERS = 'test_hermes_subscribers'
     SUBSCRIPTIONS = 'test_hermes_subscriptions'
     LOG = 'test_hermes_log'
