@@ -59,8 +59,9 @@ if args.clear:
     db = boto3.resource(
         'dynamodb',
         endpoint_url='http://dynamodb:8000',
-        region_name='eu_west'
+        region_name='eu-west-1'
     )
+    
     try:
         print('Cleaning the dev db.')
         response = db.Table(app.config['SUBSCRIBERS']).delete()
@@ -79,7 +80,7 @@ if args.setup:
     db = boto3.client(
         'dynamodb',
         endpoint_url='http://dynamodb:8000',
-        region_name='eu_west'
+        region_name='eu-west-1'
     )
 
     # Create the required tables in the database
@@ -152,7 +153,6 @@ if args.populate:
                 '/../.settings/accounts.cfg')
         users_file = open(path, 'r+').read()
         users = ast.literal_eval(users_file) if users_file else {}
-
         # Create the subscriptions for the developer's accounts.
         for username, user in users.items():
             util.subscribe(
@@ -179,7 +179,7 @@ if args.list:
     db = boto3.resource(
         'dynamodb',
         endpoint_url='http://dynamodb:8000',
-        region_name='eu_west'
+        region_name='eu-west-1'
     )
     try:
         # List subscribers.
