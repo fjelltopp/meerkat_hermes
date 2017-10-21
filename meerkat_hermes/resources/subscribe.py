@@ -2,18 +2,17 @@
 This class manages the Subscriber database field.  It includes methods to
 update the the dynamodb table "hermes_subscribers".
 """
+from flask_restful import Resource, reqparse
+from flask import Response, current_app
+from meerkat_hermes import authorise
+import meerkat_hermes.util as util
 import boto3
 import json
-from flask_restful import Resource, reqparse
-from flask import current_app, Response, request
-from meerkat_hermes.authentication import require_api_key
-import meerkat_hermes.util as util
 
 
 class Subscribe(Resource):
 
-    # Require authentication to access this resource
-    decorators = [require_api_key]
+    decorators = [authorise]
 
     def __init__(self):
         # Load the database and tables once upon object creation.
@@ -33,8 +32,6 @@ class Subscribe(Resource):
         Returns:
              The amazon dynamodb response.
         """
-        current_app.logger.warning(
-            'Get subcriber called.  subscriber_id: ' + subscriber_id)
         response = self.subscribers.get_item(
             Key={
                 'id': subscriber_id
@@ -114,7 +111,6 @@ class Subscribe(Resource):
                         status=response['ResponseMetadata']['HTTPStatusCode'],
                         mimetype='application/json')
 
-    @require_api_key
     def delete(self, subscriber_id):
         """
         Delete a subscriber from the database.

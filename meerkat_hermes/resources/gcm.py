@@ -7,13 +7,12 @@ import uuid
 import json
 from flask import current_app, Response
 import meerkat_hermes.util as util
-from meerkat_hermes.authentication import require_api_key
+from meerkat_hermes import authorise
 
 
 class Gcm(Resource):
 
-    # Require authentication
-    decorators = [require_api_key]
+    decorators = [authorise]
 
     def put(self):
         """
@@ -64,7 +63,7 @@ class Gcm(Resource):
 
         # Handle response status codes
         if response.status_code == 200:
-            response_dict = json.loads(response.get_data())
+            response_dict = json.loads(response.get_data().decode('UTF-8'))
         else:
             response_dict = {"message": str(response.get_data())}
 

@@ -6,28 +6,58 @@ Root Flask app for the Meerkat Hermes messaging module.
 from flask import Flask
 from flask_restful import Api
 from raven.contrib.flask import Sentry
+from functools import wraps
+from meerkat_libs.auth_client import auth
 import boto3
 import logging
 import os
 
 # Create the Flask app
 app = Flask(__name__)
-logging.warning("Config object: {}".format(
-    os.getenv('CONFIG_OBJECT', 'config.Development')
-))
-app.config.from_object(os.getenv('CONFIG_OBJECT', 'config.Development'))
+config_object = os.getenv('CONFIG_OBJECT', 'meerkat_hermes.config.Development')
+app.config.from_object(config_object)
+
+# Confgure the logging
+logger = logging.getLogger("meerkat_hermes")
+if not logger.handlers:
+    log_format = app.config['LOGGING_FORMAT']
+    handler = logging.StreamHandler()
+    formatter = logging.Formatter(log_format)
+    handler.setFormatter(formatter)
+    level_name = app.config["LOGGING_LEVEL"]
+    level = logging.getLevelName(level_name)
+    logger.setLevel(level)
+    logger.addHandler(handler)
+logger.info('App loaded with {} config object.'.format(config_object))
+
+# Load any secret settings
 try:
     app.config.from_envvar('MEERKAT_HERMES_SETTINGS')
 except FileNotFoundError:
-    logging.warning("No secret settings specified.")
+    logger.warning("No secret settings specified.")
+
 api = Api(app)
-logging.warning('App loaded')
 
 # Set up sentry error monitoring
 if app.config["SENTRY_DNS"]:
     sentry = Sentry(app, dsn=app.config["SENTRY_DNS"])
 else:
     sentry = None
+
+
+# A decorator used to wrap up the authroisation process.
+# This appears to be simplest way of putting access configs in app config.
+def authorise(f):
+    """
+    @param f: flask function
+    @return: decorator, return the wrapped function or abort json object.
+    """
+    @wraps(f)
+    def decorated(*args, **kwargs):
+            auth.check_auth(*app.config['ACCESS'])
+            return f(*args, **kwargs)
+    return decorated
+
 
 # Import the API resources
 # Import them after creating the app, because they depend upon the app.

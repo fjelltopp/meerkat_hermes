@@ -9,13 +9,12 @@ import boto3
 import json
 from flask_restful import Resource, reqparse
 from flask import current_app, Response
-from meerkat_hermes.authentication import require_api_key
+from meerkat_hermes import authorise
 
 
 class Verify(Resource):
 
-    # Require authentication
-    decorators = [require_api_key]
+    decorators = [authorise]
 
     def __init__(self):
         # Load the database and tables, upon object creation.

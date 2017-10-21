@@ -5,18 +5,15 @@ primary function of meerkat hermes.
 """
 from flask_restful import Resource, reqparse
 from flask import current_app, Response
-from meerkat_hermes.authentication import require_api_key
+from meerkat_hermes import authorise, logger
 import meerkat_hermes.util as util
 import json
-import logging
 import boto3
 
 
-# This Emailer resource has just one method, which sends a given email message.
 class Publish(Resource):
 
-    # Require authentication
-    decorators = [require_api_key]
+    decorators = [authorise]
 
     def put(self):
         """
@@ -69,12 +66,13 @@ class Publish(Resource):
                             help='The address from which to send the message')
         args = parser.parse_args()
 
-        logging.warning(current_app.config['CALL_TIMES'])
+        # Log previous times the publish function has been called
+        logger.debug(current_app.config['CALL_TIMES'])
 
         # Check whether the rate limit has been exceeded.
         if util.limit_exceeded():
             # Log the issue.
-            logging.warning("ERROR: Rate limit exceeded.\n{}".format(
+            logger.error("Rate limit exceeded.\n{}".format(
                 current_app.config['CALL_TIMES']
             ))
             # If limit exceeded, send 503 Service Unavailable error.
@@ -98,6 +96,11 @@ class Publish(Resource):
 
         # Check that the message hasn't already been sent.
         if not util.id_valid(args['id']):
+            logger.warning(
+                "Can't publish message. ID {} already exists.".format(
+                    args['id']
+                )
+            )
             # If the message ID exists, return with a 400 bad request response.
             message = {
                 "message": ("400 Bad Request: id " + args['id'] +
@@ -128,8 +131,7 @@ class Publish(Resource):
 
 class Notify(Resource):
 
-    # Require authentication
-    decorators = [require_api_key]
+    decorators = [authorise]
 
     def __init__(self):
         # Load the database and tables, upon object creation.
@@ -184,8 +186,7 @@ class Notify(Resource):
 
 class Error(Resource):
 
-    # Require authentication
-    decorators = [require_api_key]
+    decorators = [authorise]
 
     def __init__(self):
         # Load the database and tables, upon object creation.
