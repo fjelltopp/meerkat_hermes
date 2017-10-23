@@ -12,10 +12,9 @@ env:
 install:
 - pip install .
 - pip install -r requirements.txt
-- cd ..
 - git clone --branch development --single-branch https://github.com/meerkat-code/meerkat_libs.git
 - pip install -r meerkat_libs/requirements.txt
-- export PYTHONPATH=$PYTHONPATH:$HOME/build/meerkat-code/meerkat_libs/
+- export PYTHONPATH=$PYTHONPATH:${TRAVIS_BUILD_DIR}/meerkat_libs/
 - cd meerkat_hermes/
 script: nosetests --logging-level=WARNING
 notifications:
