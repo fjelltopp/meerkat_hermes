@@ -16,7 +16,7 @@ def slack(channel, message, subject=''):
     Args:
         channel (str): Required. The channel or username to which the message
         should be posted.
-        message (str): Required. The message to post to slack.\n
+        message (str): Required. The message to post to slack.
         subject (str): Optional. Placed in bold and seperated by a pipe.
 
     return "sent"
@@ -45,17 +45,15 @@ def subscribe(first_name, last_name, email,
     easily from python code.
 
     Args:
-        first_name (str): Required. The subscriber's first name.\n
-        last_name (str): Required. The subscriber's last name.\n
-        email (str): Required. The subscriber's email address.\n
-        country (str): Required. The country that the subscriber has signed
-                       up to.\n
-        sms (str): The subscribers phone number for sms.\n
+        first_name (str): Required. The subscriber's first name.
+        last_name (str): Required. The subscriber's last name.
+        email (str): Required. The subscriber's email address.
+        country (str): Required. The country that the subscriber has signed up to.
+        sms (str): The subscribers phone number for sms.
         slack (str): The slack username or channel.
-        topics ([str]): Required. The ID's for the topics to which the
-                        subscriber wishes to subscribe.\n
-        verified (bool): Are their contact details verified? Defaults to
-                         False.
+        topics ([str]): Required. The ID's for the topics to which the subscriber \
+            wishes to subscribe.
+        verified (bool): Are their contact details verified? Defaults to False.
     """
 
     # Assign the new subscriber a unique id.
@@ -97,13 +95,13 @@ def send_email(destination, subject, message, html, sender):
     Sends an email using Amazon SES.
 
     Args:
-        destination ([str]): Required. The email address to send to.\n
-        subject (str): Required. The email subject. \n
-        message (str): Required. The message to be sent. \n
-        html (str): The html version of the message to be sent.
-                    Defaults to the same as 'message'. \n
-        sender (str): The sender's address. Must be an AWS SES verified email
-                      address. Defaults to the config file SENDER value.
+        destination ([str]): Required. The email address to send to.
+        subject (str): Required. The email subject.
+        message (str): Required. The message to be sent.
+        html (str): The html version of the message to be sent. Defaults to \
+            the same as 'message'.
+        sender (str): The sender's address. Must be an AWS SES verified email \
+            address. Defaults to the config file SENDER value.
 
     Returns:
         The Amazon SES response. If email fails, returns a response look-a-like
@@ -113,7 +111,7 @@ def send_email(destination, subject, message, html, sender):
     client = boto3.client('ses', region_name='eu-west-1')
 
     if(not html):
-        html = message.replace('\n', '<br />')
+        html = message.replace('', '<br />')
 
     try:
         response = client.send_email(
@@ -143,7 +141,7 @@ def send_email(destination, subject, message, html, sender):
         return response
 
     except Exception as e:
-        msg = "Failed to send email \"{}\" to: {}\n{}".format(
+        msg = "Failed to send email \"{}\" to: {}{}".format(
             subject,
             destination,
             e
@@ -158,8 +156,8 @@ def send_gcm(destination, message):
     subscription id
 
     Args:
-        destination ([str]): Required. The GCM subscriber ID or topic to send\n
-        message (str): Required. The message to be sent. \n
+        destination ([str]): Required. The GCM subscriber ID or topic to send
+        message (str): Required. The message to be sent.
 
     Returns:
         The Google Cloud Messaging server response.
@@ -188,11 +186,11 @@ def log_message(messageID, details):
     Logs that a message has been sent in the relavent dynamodb table.
 
     Args:
-        messageID (str): Required. The unique message ID to be logged (Str)
-                         Will fail if the messageID already exists.\n
-        details (dict): Required. A dictionary containing any further details
-                        you wish to store. Typically: destinations, message,
-                        time and medium and optionally topics.
+        messageID (str): Required. The unique message ID to be logged (Str) \
+            Will fail if the messageID already exists.
+        details (dict): Required. A dictionary containing any further details \
+            you wish to store. Typically: destinations, message, time and \
+            medium and optionally topics.
 
     Returns:
         The Amazon DynamoDB response.
@@ -238,7 +236,7 @@ def send_sms(destination, message):
     Sends an sms message using AWS SNS.
 
     Args:
-        destination (str): Required. The sms number to send to.\n
+        destination (str): Required. The sms number to send to.
         message (str): Required. The message to be sent.
 
     Returns:
@@ -263,8 +261,8 @@ def get_date():
     """
     Function to retreive a current timestamp.
 
-       Returns:
-           The current date and time in Y:M:DTH:M:S format.
+    Returns:
+        The current date and time as a string.
     """
     return datetime.fromtimestamp(time.time()).strftime('%Y:%m:%dT%H:%M:%S')
 
@@ -274,8 +272,7 @@ def id_valid(messageID):
     Checks whether or not the given messageID has already been logged.
 
     Returns:
-        bool - True for a valid message ID, False for one that has already
-               been logged.
+        True for a valid message ID, False for one that has already been logged.
     """
     db = boto3.resource(
         'dynamodb',
@@ -321,6 +318,7 @@ def delete_subscriber(subscriber_id):
 
     Args:
          subscriber_id (str)
+
     Returns:
          The amazon dynamodb response.
     """
@@ -361,24 +359,22 @@ def publish(args):
     Arguments are passed in the request data.
 
     Args:
-        args (dictionary): Should contiain the following key/value pairs:\n
-            id (str): Required. If another message with the same ID has been
-                      logged, this one won't send. Returns a 400 Bad Request
-                      error if this is the case.\n
-            message (str): Required. The message.\n
-            topics ([str]): Required. The topics the message fits into
-                            (determines destination address/es). Accepts array
-                            of multiple topics.\n
-            medium ([str]): The medium by which to publish the message
-                            ('email', 'sms', etc...) Defaults to email. Accepts
-                            array of multiple mediums.\n
-            sms-message (str): The sms version of the message. Defaults to the
-                               same as 'message'\n
-            html-message (str): The html version of the message. Defaults to
-                                the same as 'message'\n
-            subject (str): The e-mail subject. Defaults to "".\n
-            from (str): The address from which to send the message. \n
-                        Deafults to an emro address stored in the config.
+        args (dictionary): Should contiain the following key/value pairs:
+            id (str): Required. If another message with the same ID has been \
+                logged, this one won't send. Returns a 400 Bad Request error \
+                if this is the case.
+            message (str): Required. The message.
+            topics ([str]): Required. The topics the message fits into (determines \
+                destination address/es). Accepts array of multiple topics.
+            medium ([str]): The medium by which to publish the message ('email', \
+                'sms', etc...) Defaults to email. Accepts array of multiple mediums.
+            sms-message (str): The sms version of the message. Defaults to the \
+                same as 'message'
+            html-message (str): The html version of the message. Defaults to the \
+                same as 'message'
+            subject (str): The e-mail subject. Defaults to "".
+            from (str): The address from which to send the message. Deafults to \
+                an emro address stored in the config.
 
     Returns:
         An array of amazon SES and nexmo responses for each message sent.
@@ -421,7 +417,7 @@ def publish(args):
         for subscriber in subscribers_table.scan(**kwargs).get("Items", []):
             subscribers[subscriber["id"]] = subscriber
 
-    print('\nSUBSCRIBERS: ' + str(subscribers))
+    print('SUBSCRIBERS: ' + str(subscribers))
 
     # Record details about the sent messages.
     responses = []
@@ -504,14 +500,14 @@ def error(args):
     subject to.
 
     Args:
-        message (str): Required. The e-mail message.\n
-        subject (str): Optional. Defaults to "Meerkat Error".\n
+        message (str): Required. The e-mail message.
+        subject (str): Optional. Defaults to "Meerkat Error".
         medium ([str]): Optional. A list of the following mediums: 'email',
-            'sms', 'slack'. Defaults to ['slack','email'].\n
+            'sms', 'slack'. Defaults to ['slack','email'].
         sms-message (str): Optional. The sms version of the message.
-            Defaults to the same as 'message'\n
+            Defaults to the same as 'message'
         html-message (str): Optional. The html version of the message.
-            Defaults to the same as 'message'\n
+            Defaults to the same as 'message'
     Returns:
         The amazon SES response.
     """
@@ -540,14 +536,14 @@ def notify(args):
     the rate limiting that normal published messages are subject to.
 
     Args:
-        message (str): Required. The e-mail message.\n
-        subject (str): Optional. Defaults to "Meerkat Notification".\n
+        message (str): Required. The e-mail message.
+        subject (str): Optional. Defaults to "Meerkat Notification".
         medium ([str]): Optional. A list of the following mediums: 'email',
-            'sms', 'slack'. Defaults to ['slack'].\n
+            'sms', 'slack'. Defaults to ['slack'].
         sms-message (str): Optional. The sms version of the message.
-            Defaults to the same as 'message'\n
+            Defaults to the same as 'message'
         html-message (str): Optional. The html version of the message.
-            Defaults to the same as 'message'\n
+            Defaults to the same as 'message'
     Returns:
         The amazon SES response.
     """

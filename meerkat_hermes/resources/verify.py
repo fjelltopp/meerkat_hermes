@@ -74,9 +74,9 @@ class Verify(Resource):
         Arguments are passed in the request data.
 
         Post args:
-             subscriber_id (str): Required. The ID for the subscriber who has
-                                  been verified.
-             code (str): Required. The code to be checked.
+        subscriber_id (str): Required. The ID for the subscriber who has been verified.
+        code (str): Required. The code to be checked.
+
         Returns:
              A json blob with one boolean attribute "matched" saying whether
              the codes have matched. e.g. {"matched": true}
@@ -122,8 +122,7 @@ class Verify(Resource):
         Sets the subscriber's "verified" attribute to True.
 
         Args:
-             subscriber_id (str): The ID for the subscriber who has been
-                                  verified.
+             subscriber_id (str): The ID for the subscriber who has been verified.
 
         Returns:
              A json object with attribute "message" informing whether the
