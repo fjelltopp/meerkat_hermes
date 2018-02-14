@@ -14,14 +14,9 @@ install:
 - git clone --branch development --single-branch https://github.com/meerkat-code/meerkat_libs.git
 - pip install -r meerkat_libs/requirements.txt
 - export PYTHONPATH=$PYTHONPATH:${TRAVIS_BUILD_DIR}/meerkat_libs/:${TRAVIS_BUILD_DIR}/meerkat_hermes/
-- cd meerkat_hermes/
-<<<<<<< 0f104f99868a18b12d8f8dd71044f9fe3ad46675
-script: nosetests -v
-=======
 script:
+- sphinx-build -a -b html -d docs/_build/doctrees docs/_source docs/_build/html
 - nosetests -v --logging-level=WARNING
-- sphinx-build -Wa -b html -d docs/_build/doctrees docs/_source docs/_build/html
->>>>>>> Add docs build to travis.
 notifications:
   slack:
     secure: "lidQBuoG6qWyhxwSvvIce5HZZnjlLBDSshqNKeiHrNGsrWk5pi342+aKTzTxqsZHaP6A9ng8LDdSNab89a4BKb07oJhbB2oFuyBOAYXe/zbutAXGCsEZBbamrkspkpKFhOz+Ijq49K2me6ONkfRvyZVpGbNKf97l2R4v/elZZ2jZBy96QP7zPYyFMRLynNJssM1YgHKY74caHrRgaLwpVch7tKsNj8YgC+KPjigvOSqVy2D/SvquE4z7sroB7ATw/aQsKR/A+xi9sikHDwOu5syAUuWbw3LlxqUAj2qpDD0SpeWcVg4MZ3GB34sYiWIQGHMF3MDQ30WxV2hq3kT0qF78EXlnhGLIDoGNNNEYifayUsludqbaDCeZIcoZEbY5MtvzmenUj3uFZSUS1v7d8/ePb+x6kxNNmjDhKb6iIblE5lFo39zUmMbkqavVGqYmFosirvmJIHMfd3J8Skc+19jw4vDN+rilp/MysGXZ3aAMFvxkzNE6heyxPrIAxL9DFTM7HcleeD7KPs/ekqPnm6XpJmHG96Ni0QcMsXSq91Kvvd7aDyrhjbbgbmPw0T3PqaxEw4GLZSph1HN7bw9qFM25GVlNbVoD91giHOKbZc7WH1ZfWwn8+1hH28gfOfUAUB1SQ/zyW4vgBs572kihwZn0j9y3YujtPwNzpriSU8k="
