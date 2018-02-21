@@ -12,10 +12,30 @@
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #
-# import os
-# import sys
-# sys.path.insert(0, os.path.abspath('.'))
 
+import sys
+from unittest.mock import MagicMock
+
+# -- Mock Modules --------------------------------------------------------------
+
+# If the module can't be installed in read the docs easily, you should add it to
+# the list of modules to mock below.  This will ensure that the build continues
+# even if the module isn't installed.
+
+MOCK_MODULES = ['meerkat_libs', 'meerkat_libs.auth_client']
+
+
+class Mock(MagicMock):
+    @classmethod
+    def __getattr__(cls, name):
+            return MagicMock()
+
+
+def mock_modules():
+    sys.modules.update((mod_name, Mock()) for mod_name in MOCK_MODULES)
+
+
+mock_modules()
 
 # -- Project information -----------------------------------------------------
 
