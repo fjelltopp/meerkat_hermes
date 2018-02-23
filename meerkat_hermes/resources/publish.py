@@ -142,6 +142,38 @@ class Notify(Resource):
         )
         self.subscribers = db.Table(current_app.config['SUBSCRIBERS'])
 
+    def get(self):
+        """
+        Notify the developers on slack of some change in the system. This is a
+        GET endpoint that can be used by services like Read The Docs to update
+        developers. All args are passed as GET args.  Note that the auth token
+        can be included in the get args.
+
+        Args:
+            message (str): Required. The slack message.\n
+            subject (str): Required. The message title.\n
+
+        Returns:
+            The amazon SES response.
+        """
+
+        # Define the argument parser.
+        parser = reqparse.RequestParser()
+        parser.add_argument('message', required=True, type=str,
+                            help='The message string.')
+        parser.add_argument('subject', required=False,
+                            type=str, help='The message subject.')
+        args = parser.parse_args()
+
+        args['medium'] = ['slack']
+
+        responses = util.notify(args)
+
+        # Return responses.
+        return Response(json.dumps(responses),
+                        status=200,
+                        mimetype='application/json')
+
     def put(self):
         """
         Notify the developers of some change in the system. Notifications
