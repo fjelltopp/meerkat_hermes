@@ -3,7 +3,7 @@ meerkat_hermes.py
 
 Root Flask app for the Meerkat Hermes messaging module.
 """
-from flask import Flask
+from flask import Flask, request
 from flask_restful import Api
 from raven.contrib.flask import Sentry
 from functools import wraps
@@ -54,7 +54,23 @@ def authorise(f):
     """
     @wraps(f)
     def decorated(*args, **kwargs):
-            auth.check_auth(*app.config['ACCESS'])
+            # Load the authentication rule from configs,
+            # based on the request url_rule.
+            auth_rule = app.config['AUTH'].get(
+                str(request.path),
+                app.config['AUTH'].get(
+                    str(request.url_rule),
+                    app.config['AUTH'].get(
+                        'default',
+                        [['BROKEN'], ['']]
+                    )
+                )
+            )
+            logger.info("{} requires access: {}".format(
+                request.path,
+                auth_rule
+            ))
+            auth.check_auth(*auth_rule)
             return f(*args, **kwargs)
     return decorated
 
