@@ -39,7 +39,10 @@ class Config(object):
     GCM_ALLOWED_TOPICS = ['/topics/demo']
     GCM_MOCK_RESPONSE_ONLY = 1
 
-    ACCESS = [['hermes'], ['meerkat']]
+    AUTH = {
+        '/notify': [['slack'], ['meerkat']],
+        'default': [['hermes'], ['meerkat']]
+    }
     LOGGING_LEVEL = os.environ.get('LOGGING_LEVEL', 'INFO')
     LOGGING_FORMAT = '%(levelname)s - %(message)s'
 
@@ -69,7 +72,7 @@ class Development(Config):
 
 class Testing(Config):
     TESTING = True
-    ACCESS = [[], []]
+    AUTH = {'default': [[], []]}
     SUBSCRIBERS = 'test_hermes_subscribers'
     SUBSCRIPTIONS = 'test_hermes_subscriptions'
     LOG = 'test_hermes_log'
