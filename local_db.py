@@ -17,9 +17,8 @@ steps in the above order.
 You can run these commands inside the docker container if there are database
 issues.
 """
-from meerkat_hermes import app
+from meerkat_hermes import app, db
 from meerkat_hermes import util
-import boto3
 import os
 import ast
 import argparse
@@ -56,91 +55,11 @@ if all(arg is False for arg in args_dict.values()):
 
 # Clear the database
 if args.clear:
-    db = boto3.resource(
-        'dynamodb',
-        endpoint_url='http://dynamodb:8000',
-        region_name='eu-west-1'
-    )
-    
-    try:
-        print('Cleaning the dev db.')
-        response = db.Table(app.config['SUBSCRIBERS']).delete()
-        response = db.Table(app.config['LOG']).delete()
-        print('Cleaned the db.')
-    except Exception as e:
-        print(e)
-        print('There has been error, probably because no tables currently '
-              'exist. Skipping the clean process.')
+    db.drop()
 
 # Create the db tables required and perform any other db setup.
 if args.setup:
-    print('Creating dev db')
-
-    # Create the client for the local database
-    db = boto3.client(
-        'dynamodb',
-        endpoint_url='http://dynamodb:8000',
-        region_name='eu-west-1'
-    )
-
-    # Create the required tables in the database
-    response = db.create_table(
-        TableName=app.config['SUBSCRIBERS'],
-        AttributeDefinitions=[
-            {'AttributeName': 'id', 'AttributeType': 'S'},
-            {'AttributeName': 'email', 'AttributeType': 'S'}
-        ],
-        KeySchema=[{'AttributeName': 'id', 'KeyType': 'HASH'}],
-        ProvisionedThroughput={
-            'ReadCapacityUnits': 5,
-            'WriteCapacityUnits': 5
-        },
-        GlobalSecondaryIndexes=[{
-            'IndexName': 'email-index',
-            'KeySchema': [{
-                'AttributeName': 'email',
-                'KeyType': 'HASH'
-            }],
-            'Projection': {'ProjectionType': 'ALL'},
-            'ProvisionedThroughput': {
-                'ReadCapacityUnits': 1,
-                'WriteCapacityUnits': 1
-            }
-        }],
-    )
-    print("Table {} status: {}".format(
-        app.config['SUBSCRIBERS'],
-        response['TableDescription'].get('TableStatus')
-    ))
-
-    response = db.create_table(
-        TableName=app.config['LOG'],
-        AttributeDefinitions=[
-            {'AttributeName': 'id', 'AttributeType': 'S'},
-            {'AttributeName': 'message', 'AttributeType': 'S'}
-        ],
-        KeySchema=[{'AttributeName': 'id', 'KeyType': 'HASH'}],
-        ProvisionedThroughput={
-            'ReadCapacityUnits': 5,
-            'WriteCapacityUnits': 5
-        },
-        GlobalSecondaryIndexes=[{
-            'IndexName': 'message-index',
-            'KeySchema': [{
-                'AttributeName': 'message',
-                'KeyType': 'HASH'
-            }],
-            'Projection': {'ProjectionType': 'ALL'},
-            'ProvisionedThroughput': {
-                'ReadCapacityUnits': 1,
-                'WriteCapacityUnits': 1
-            }
-        }],
-    )
-    print("Table {} status: {}".format(
-        app.config['LOG'],
-        response['TableDescription'].get('TableStatus')
-    ))
+    db.setup()
 
 # Put initial fake data into the database.
 if args.populate:
@@ -176,15 +95,9 @@ if args.populate:
 # Finally list all items in the database, so we know what it is populated with.
 if args.list:
     print('Listing data in the database.')
-    db = boto3.resource(
-        'dynamodb',
-        endpoint_url='http://dynamodb:8000',
-        region_name='eu-west-1'
-    )
     try:
         # List subscribers.
-        subscribers = db.Table(app.config['SUBSCRIBERS'])
-        subscribers = subscribers.scan().get("Items", [])
+        subscribers = db.get_all(app.config['SUBSCRIBERS'])
         if subscribers:
             print("Subscribers created:")
             for subscriber in subscribers:
@@ -198,8 +111,7 @@ if args.list:
             print("No subscribers exist.")
 
         # List log.
-        log = db.Table(app.config['LOG'])
-        log = log.scan().get("Items", [])
+        log = db.get_all(app.config['LOG'])
         if log:
             print("Log created:")
             print(log)
