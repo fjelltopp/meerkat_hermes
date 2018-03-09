@@ -4,6 +4,7 @@ config.py
 Configuration and settings.
 Kept inside the packages code so it can be easily imported within the package.
 """
+from psycopg2 import sql
 import os
 
 
@@ -13,7 +14,6 @@ class Config(object):
     PRODUCTION = False
 
     SUBSCRIBERS = 'hermes_subscribers'
-    SUBSCRIPTIONS = 'hermes_subscriptions'
     LOG = 'hermes_log'
 
     DB_URL = os.environ.get("DB_URL", "http://dynamodb:8000")
@@ -45,6 +45,80 @@ class Config(object):
     }
     LOGGING_LEVEL = os.environ.get('LOGGING_LEVEL', 'INFO')
     LOGGING_FORMAT = '%(levelname)s - %(message)s'
+
+    # DB Adapters from meerkat libs enable us to use different dbs.
+    DB_ADAPTER = os.environ.get("MEERKAT_DB_ADAPTER", "DynamoDBAdapter")
+    DB_ADAPTER_CONFIGS = {
+        "DynamoDBAdapter": {
+            'db_url': os.environ.get(
+                "DB_URL",
+                "https://dynamodb.eu-west-1.amazonaws.com"
+            ),
+            "structure": {
+                SUBSCRIBERS: {
+                    "TableName": SUBSCRIBERS,
+                    "AttributeDefinitions": [
+                        {'AttributeName': 'id', 'AttributeType': 'S'},
+                        {'AttributeName': 'email', 'AttributeType': 'S'}
+                    ],
+                    "KeySchema": [{'AttributeName': 'id', 'KeyType': 'HASH'}],
+                    "ProvisionedThroughput": {
+                        'ReadCapacityUnits': 5,
+                        'WriteCapacityUnits': 5
+                    },
+                    "GlobalSecondaryIndexes": [{
+                        'IndexName': 'email-index',
+                        'KeySchema': [{
+                            'AttributeName': 'email',
+                            'KeyType': 'HASH'
+                        }],
+                        'Projection': {'ProjectionType': 'ALL'},
+                        'ProvisionedThroughput': {
+                            'ReadCapacityUnits': 1,
+                            'WriteCapacityUnits': 1
+                        }
+                    }],
+                },
+                LOG: {
+                    "TableName": LOG,
+                    "AttributeDefinitions": [
+                        {'AttributeName': 'id', 'AttributeType': 'S'},
+                        {'AttributeName': 'message', 'AttributeType': 'S'}
+                    ],
+                    "KeySchema": [{'AttributeName': 'id', 'KeyType': 'HASH'}],
+                    "ProvisionedThroughput": {
+                        'ReadCapacityUnits': 5,
+                        'WriteCapacityUnits': 5
+                    },
+                    "GlobalSecondaryIndexes": [{
+                        'IndexName': 'message-index',
+                        'KeySchema': [{
+                            'AttributeName': 'message',
+                            'KeyType': 'HASH'
+                        }],
+                        'Projection': {'ProjectionType': 'ALL'},
+                        'ProvisionedThroughput': {
+                            'ReadCapacityUnits': 1,
+                            'WriteCapacityUnits': 1
+                        }
+                    }],
+                }
+            }
+        },
+        'PostgreSQLAdapter': {
+            'db_name': 'meerkat_hermes',
+            'structure': {
+                SUBSCRIBERS: [
+                    ("id", sql.SQL("id VARCHAR(50) PRIMARY KEY")),
+                    ("data",  sql.SQL("data JSON"))
+                ],
+                LOG: [
+                    ("id", sql.SQL("id VARCHAR(50)")),
+                    ("data", sql.SQL("data JSON"))
+                ]
+            }
+        }
+    }
 
 
 class Production(Config):
