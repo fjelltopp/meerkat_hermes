@@ -3,25 +3,15 @@ This class manages the Subscriber database field.  It includes methods to
 update the the dynamodb table "hermes_subscribers".
 """
 from flask_restful import Resource, reqparse
-from flask import Response, current_app
-from meerkat_hermes import authorise
+from flask import Response
+from meerkat_hermes import authorise, app, db
 import meerkat_hermes.util as util
-import boto3
 import json
 
 
 class Subscribe(Resource):
 
     decorators = [authorise]
-
-    def __init__(self):
-        # Load the database and tables once upon object creation.
-        db = boto3.resource(
-            'dynamodb',
-            endpoint_url=current_app.config['DB_URL'],
-            region_name='eu-west-1'
-        )
-        self.subscribers = db.Table(current_app.config['SUBSCRIBERS'])
 
     def get(self, subscriber_id):
         """
@@ -32,10 +22,9 @@ class Subscribe(Resource):
         Returns:
              The amazon dynamodb response.
         """
-        response = self.subscribers.get_item(
-            Key={
-                'id': subscriber_id
-            }
+        response = db.read(
+            app.config['SUBSCRIBERS'],
+            {'id': subscriber_id}
         )
         return Response(json.dumps(response),
                         status=response['ResponseMetadata']['HTTPStatusCode'],
@@ -107,9 +96,7 @@ class Subscribe(Resource):
             args.get('verified', False)
         )
 
-        return Response(json.dumps(response),
-                        status=response['ResponseMetadata']['HTTPStatusCode'],
-                        mimetype='application/json')
+        return Response(json.dumps(response), mimetype='application/json')
 
     def delete(self, subscriber_id):
         """

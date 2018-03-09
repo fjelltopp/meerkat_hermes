@@ -1,4 +1,4 @@
-from meerkat_hermes import app, logger
+from meerkat_hermes import app, logger, db
 from flask import Response
 from datetime import datetime, timedelta
 import uuid
@@ -61,7 +61,6 @@ def subscribe(first_name, last_name, email,
 
     # Create the subscriber object.
     subscriber = {
-        'id': subscriber_id,
         'first_name': first_name,
         'last_name': last_name,
         'country': country,
@@ -78,16 +77,16 @@ def subscribe(first_name, last_name, email,
         subscriber['verified'] = verified
 
     # Write the subscriber to the database.
-    db = boto3.resource(
-        'dynamodb',
-        endpoint_url=app.config['DB_URL'],
-        region_name='eu-west-1'
+    response = db.write(
+        app.config['SUBSCRIBERS'],
+        {'id': subscriber_id},
+        subscriber
     )
-    subscribers = db.Table(app.config['SUBSCRIBERS'])
-    response = subscribers.put_item(Item=subscriber)
-    response['subscriber_id'] = subscriber_id
 
-    return response
+    if not response:
+        return {'subscriber_id': subscriber_id}
+    else:
+        return {**response, **{'subscriber_id': subscriber_id}}
 
 
 def send_email(destination, subject, message, html, sender):
@@ -322,28 +321,20 @@ def delete_subscriber(subscriber_id):
     Returns:
          The amazon dynamodb response.
     """
-    db = boto3.resource(
-        'dynamodb',
-        endpoint_url=app.config['DB_URL'],
-        region_name='eu-west-1'
-    )
-    subscribers = db.Table(app.config['SUBSCRIBERS'])
+    try:
+        db.delete(
+            app.config['SUBSCRIBERS'],
+            {'id': subscriber_id}
+        )
+        status = 200
+        response = ("<html><body><H2>You have been "
+                    "successfully unsubscribed.</H2></body</html>")
+        mimetype = 'text/html'
 
-    subscribers_response = subscribers.delete_item(
-        Key={
-            'id': subscriber_id
-        }
-    )
-
-    status = 200
-    response = ("<html><body><H2>You have been "
-                "successfully unsubscribed.</H2></body</html>")
-    mimetype = 'text/html'
-
-    if not subscribers_response['ResponseMetadata']['HTTPStatusCode'] == 200:
+    except Exception:
         status = 500
         response = ("{'message':'500 Internal Server "
-                    "Error: Unable to complete deletion.'}")
+                    "Exeption raised: Unable to complete deletion.'}")
         mimetype = 'application/json'
 
     return Response(response,
