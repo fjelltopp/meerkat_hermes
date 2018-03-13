@@ -3,26 +3,16 @@ This resource provides a simple means of sending a given e-mail message to
 given e-mail addresses.
 """
 from flask_restful import Resource, reqparse
-from flask import current_app, Response
-from meerkat_hermes import authorise
+from flask import Response
+from meerkat_hermes import authorise, app
 import meerkat_hermes.util as util
 import uuid
-import boto3
 import json
 
 
 class Email(Resource):
 
     decorators = [authorise]
-
-    def __init__(self):
-        # Load the database and tables, upon object creation.
-        db = boto3.resource(
-            'dynamodb',
-            endpoint_url=current_app.config['DB_URL'],
-            region_name='eu-west-1'
-        )
-        self.subscribers = db.Table(current_app.config['SUBSCRIBERS'])
 
     def put(self):
         """
@@ -77,17 +67,16 @@ class Email(Resource):
             else:
                 args['email'] = []
                 for subscriber_id in args['subscriber_id']:
-                    response = self.subscribers.get_item(
-                        Key={
-                            'id': subscriber_id
-                        }
+                    response = app.db.read(
+                        app.config['SUBSCRIBERS'],
+                        {'id': subscriber_id}
                     )
-                    args['email'].append(response['Item']['email'])
+                    args['email'].append(response['email'])
 
         # Set the from field to the config SENDER value if no from field is
         # supplied.
         if not args['from']:
-            args['from'] = current_app.config['SENDER']
+            args['from'] = app.config['SENDER']
 
         response = util.send_email(
             args['email'],

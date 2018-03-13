@@ -4,7 +4,7 @@ update the the dynamodb table "hermes_subscribers".
 """
 from flask_restful import Resource, reqparse
 from flask import Response
-from meerkat_hermes import authorise, app, db
+from meerkat_hermes import authorise, app
 import meerkat_hermes.util as util
 import json
 
@@ -22,13 +22,11 @@ class Subscribe(Resource):
         Returns:
              The amazon dynamodb response.
         """
-        response = db.read(
+        response = app.db.read(
             app.config['SUBSCRIBERS'],
             {'id': subscriber_id}
         )
-        return Response(json.dumps(response),
-                        status=response['ResponseMetadata']['HTTPStatusCode'],
-                        mimetype='application/json')
+        return Response(json.dumps(response), mimetype='application/json')
 
     def put(self):
         """

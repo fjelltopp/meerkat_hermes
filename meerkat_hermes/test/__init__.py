@@ -4,16 +4,15 @@ Meerkat Hermes Tests
 
 Unit tests for Meerkat Hermes util methods and resource classes.
 """
-from boto3.dynamodb.conditions import Key
 from unittest import mock
 from datetime import datetime
+from meerkat_hermes import app
+from meerkat_libs import db_adapters
 import meerkat_hermes.util as util
 import meerkat_hermes
-from meerkat_hermes import app
 import requests
 import json
 import unittest
-import boto3
 import logging
 import copy
 import time
@@ -45,77 +44,43 @@ class MeerkatHermesTestCase(unittest.TestCase):
         app.config.from_object('meerkat_hermes.config.Testing')
         self.app = meerkat_hermes.app.test_client()
 
-        # Load the database
-        db = boto3.resource(
-            'dynamodb',
-            endpoint_url=app.config['DB_URL'],
-            region_name='eu-west-1'
-        )
-        self.subscribers = db.Table(app.config['SUBSCRIBERS'])
-        self.subscriptions = db.Table(app.config['SUBSCRIPTIONS'])
-        self.log = db.Table(app.config['LOG'])
-
         # Only show warning level+ logs from boto3, botocore and nose.
         # Too verbose otherwise.
         logging.getLogger('boto3').setLevel(logging.WARNING)
         logging.getLogger('botocore').setLevel(logging.WARNING)
         logging.getLogger('nose').setLevel(logging.WARNING)
 
-    @classmethod
-    def teardown_class(self):
-        """
-        At the end of testing, clean up any database mess created by the
-        tests and log any activity.
-        """
-
-        # Ideally nothing should be deleted here
-        # This teardown checks that the database is clean.
-        # Keep track of # of deletions to log as a warning so dev can check.
-        deletedObjects = {
-            "subscribers": 0,
-            "messages": 0
+        # Mock the db
+        app.db = mock.create_autospec(db_adapters.DynamoDBAdapter)
+        self.db_data = {
+            app.config['SUBSCRIBERS']: {},
+            app.config['LOG']: {}
         }
 
-        # Get rid of any undeleted test subscribers.
-        query_response = self.subscribers.query(
-            IndexName='email-index',
-            KeyConditionExpression=Key('email').eq(
-                'success@simulator.amazonses.com'
-            )
-        )
-        with self.subscribers.batch_writer() as batch:
-            for subscriber in query_response['Items']:
-                batch.delete_item(
-                    Key={
-                        'id': subscriber['id']
-                    }
-                )
-        deletedObjects['subscribers'] = len(query_response['Items'])
+        def build_key(keys):
+            return '-'.join(["{}:{}".format(k, v) for (k, v) in keys.items()])
 
-        # Get rid of any test messages that have been logged and not deleted.
-        query_response = self.log.query(
-            IndexName='message-index',
-            KeyConditionExpression=Key('message').eq(self.message['message'])
-        )
-        with self.log.batch_writer() as batch:
-            for message in query_response['Items']:
-                batch.delete_item(
-                    Key={
-                        'id': message['id']
-                    }
-                )
-        deletedObjects['messages'] = len(query_response['Items'])
+        def read_effect(table, keys, attributes=[]):
+            item = self.db_data[table].get(build_key(keys), {})
+            if attributes:
+                return {k: item[k] for k in item if k in list(keys) + attributes}
+            else:
+                return item
 
-        # Do the logging only if something has been deleted.
-        if sum(deletedObjects.values()) != 0:
-            logged = ("TEARING DOWN UTIL TEST CLASS "
-                      "SHOULD NOT REQUIRE DELETION:\n")
-            for obj in deletedObjects:
-                if deletedObjects[obj] != 0:
-                    logged += "Deleted " + \
-                        str(deletedObjects[obj]) + " " + obj + ".\n"
-            meerkat_hermes.app.logger.warning(logged)
-            assert False
+        def write_effect(table, keys, attributes):
+            existing = self.db_data[table].get(build_key(keys), {})
+            self.db_data[table][build_key(keys)] = {
+                **existing,
+                **attributes,
+                **keys,
+            }
+
+        def delete_effect(table, keys):
+            del self.db_data[table][build_key(keys)]
+
+        app.db.read.side_effect = read_effect
+        app.db.write.side_effect = write_effect
+        app.db.delete.side_effect = delete_effect
 
     def test_util_replace_keywords(self):
         """
@@ -143,8 +108,8 @@ class MeerkatHermesTestCase(unittest.TestCase):
             'medium': ['email'],
             'time': util.get_date()
         }
-        self.log.put_item(Item=log)
-
+        app.db.write(app.config['LOG'], {'id': 'testID'}, log)
+        print(self.db_data[app.config['LOG']])
         # Test the id_valid utility function.
         existing_id = log['id']
         nonexisting_id = 'FAKETESTID'
@@ -152,14 +117,13 @@ class MeerkatHermesTestCase(unittest.TestCase):
         self.assertTrue(util.id_valid(nonexisting_id))
 
         # Delete the created log
+        self.assertTrue('id:'+log['id'] in self.db_data[app.config['LOG']])
         delete_response = self.app.delete('/log/' + log['id'])
-        delete_response = json.loads(delete_response.data.decode('UTF-8'))
-        print(delete_response)
-        self.assertEquals(delete_response['ResponseMetadata'][
-                          'HTTPStatusCode'], 200)
+        self.assertEqual(delete_response.status_code, 200)
+        self.assertFalse('id:'+log['id'] in self.db_data[app.config['LOG']])
 
     def test_util_check_date(self):
-        """Test the create subscriptions utility function."""
+        """Test the check date utility function."""
         self.assertEquals(
             datetime.fromtimestamp(time.time()).strftime('%Y:%m:%dT%H:%M:%S'),
             util.get_date()
@@ -179,6 +143,7 @@ class MeerkatHermesTestCase(unittest.TestCase):
         Test the Subscribe resource, including the PUT, GET and DELETE methods.
         """
         logging.warning(app.config)
+
         # Create the test subscriber
         put_response = self.app.put('/subscribe', data=self.subscriber)
         self.assertEquals(put_response.status_code, 200)
@@ -189,18 +154,23 @@ class MeerkatHermesTestCase(unittest.TestCase):
         print("Subscriber ID is " + data['subscriber_id'])
 
         # Check that the subscriber exists in the data base.
-        get_response = self.subscribers.get_item(
-            Key={
-                'id': data['subscriber_id']
-            }
-        )
-        self.assertEquals(
-            self.subscriber['email'], get_response['Item']['email']
+        get_response = self.app.get('/subscribe/'+subscriber_id)
+        self.assertEquals(get_response.status_code, 200)
+        self.assertDictEqual(
+            {**{'id': subscriber_id, 'verified': False}, **self.subscriber},
+            json.loads(get_response.data.decode('UTF-8'))
         )
 
-        # Try to delete the subscriber.
+        # Delete the subscriber.
+        self.assertTrue(
+            'id:'+subscriber_id in self.db_data[app.config['SUBSCRIBERS']]
+        )
         delete_response = self.app.delete('/subscribe/' + subscriber_id)
         self.assertEquals(delete_response.status_code, 200)
+        print(self.db_data[app.config['SUBSCRIBERS']])
+        self.assertFalse(
+            'id:'+subscriber_id in self.db_data[app.config['SUBSCRIBERS']]
+        )
 
     def test_verify_resource(self):
         """
@@ -210,12 +180,18 @@ class MeerkatHermesTestCase(unittest.TestCase):
         # Create the unverified test subscriber
         subscribe_response = self.app.put('/subscribe', data=self.subscriber)
         subscriber_id = json.loads(
-            subscribe_response.data.decode('UTF-8'))['subscriber_id']
+            subscribe_response.data.decode('UTF-8')
+        )['subscriber_id']
+        key = 'id:'+subscriber_id
 
         # Test PUT method.
         put_data = {'subscriber_id': subscriber_id, 'code': '1234'}
         put_response = self.app.put('/verify', data=put_data)
         self.assertEquals(put_response.status_code, 200)
+        self.assertTrue(
+            self.db_data[app.config['SUBSCRIBERS']][key]['code'],
+            '1234'
+        )
 
         # Test POST method for wrong and right code.
         post_data = {'subscriber_id': subscriber_id, 'code': '1231'}
@@ -231,6 +207,10 @@ class MeerkatHermesTestCase(unittest.TestCase):
         # Test GET method, for unverified and verified user.
         get_response = self.app.get('/verify/' + subscriber_id)
         self.assertEquals(get_response.status_code, 200)
+        self.assertTrue(
+            self.db_data[app.config['SUBSCRIBERS']][key]['verified'],
+            True
+        )
 
         get_response = self.app.get('/verify/' + subscriber_id)
         self.assertEquals(get_response.status_code, 400)
@@ -283,13 +263,12 @@ class MeerkatHermesTestCase(unittest.TestCase):
         )
 
         # Check that the message has been logged properly.
-        log_response = self.log.get_item(
-            Key={
-                'id': put_response['log_id']
-            }
+        log_response = app.db.read(
+            app.config['LOG'],
+            {'id': put_response['log_id']}
         )
         self.assertEquals(
-            log_response['Item']['destination'][0], email['email']
+            log_response['destination'][0], email['email']
         )
 
         # Delete the message from the log
@@ -299,17 +278,17 @@ class MeerkatHermesTestCase(unittest.TestCase):
         email = {**self.message, **{"subscriber_id": subscriber_id}}
         put_response = self.app.put('/email', data=email)
         put_response = json.loads(put_response.data.decode('UTF-8'))
-        self.assertEquals(put_response['ResponseMetadata'][
-                          'HTTPStatusCode'], 200)
+        self.assertEquals(
+            put_response['ResponseMetadata']['HTTPStatusCode'], 200
+        )
 
         # Check that the message has been logged properly.
-        log_response = self.log.get_item(
-            Key={
-                'id': put_response['log_id']
-            }
+        log_response = app.db.read(
+            app.config['LOG'],
+            {'id': put_response['log_id']}
         )
         self.assertEquals(
-            log_response['Item']['destination'][0], self.subscriber['email']
+            log_response['destination'][0], self.subscriber['email']
         )
 
         # Delete the user
@@ -329,31 +308,33 @@ class MeerkatHermesTestCase(unittest.TestCase):
             'medium': ['email'],
             'time': util.get_date()
         }
-        self.log.put_item(Item=log)
+        app.db.write(
+            app.config['LOG'],
+            {'id': 'testID'},
+            log
+        )
 
         # Test the GET Method
         get_response = self.app.get('/log/' + log['id'])
         get_response = json.loads(get_response.data.decode('UTF-8'))
         print(get_response)
-        self.assertEquals(get_response['Item']['destination'][
-                          0], self.subscriber['email'])
-        self.assertEquals(get_response['Item'][
-                          'message'], self.message['message'])
+        self.assertEquals(
+            get_response['destination'][0], self.subscriber['email']
+        )
+        self.assertEquals(
+            get_response['message'], self.message['message']
+        )
 
         # Test the DELETE Method
+        self.assertTrue('id:testID' in self.db_data[app.config['LOG']])
         delete_response = self.app.delete('/log/' + log['id'])
-        delete_response = json.loads(delete_response.data.decode('UTF-8'))
-        print(delete_response)
-        self.assertEquals(
-            delete_response['ResponseMetadata']['HTTPStatusCode'],
-            200
-        )
+        self.assertEquals(delete_response.status_code, 200)
+        self.assertFalse('id:testID' in self.db_data[app.config['LOG']])
 
     @mock.patch('meerkat_hermes.util.boto3.client')
     def test_sms_resource(self, sns_mock):
         """
-        Test the SMS resource PUT method, using the fake response returned
-        by util.send_sms().
+        Test the SMS resource PUT method.
         """
 
         sms = {
@@ -404,12 +385,11 @@ class MeerkatHermesTestCase(unittest.TestCase):
         )
 
         # Check that the message has been logged properly.
-        log_response = self.log.get_item(
-            Key={
-                'id': put_response['log_id']
-            }
+        log_response = app.db.read(
+            app.config['LOG'],
+            {'id': put_response['log_id']}
         )
-        self.assertEquals(log_response['Item']['destination'][0], sms['sms'])
+        self.assertEquals(log_response['destination'][0], sms['sms'])
 
         # Delete the message from the log
         self.app.delete('/log/' + put_response['log_id'])
@@ -417,8 +397,7 @@ class MeerkatHermesTestCase(unittest.TestCase):
     @mock.patch('meerkat_hermes.util.requests.post')
     def test_gcm_resource(self, request_mock):
         """
-        Test the GCM resource PUT method, using the fake response returned
-        by util.send_gcm().
+        Test the GCM resource PUT method.
         """
 
         gcm = {
@@ -428,11 +407,11 @@ class MeerkatHermesTestCase(unittest.TestCase):
 
         # Create the mock response.
         dummyResponseDict = {
-            "multicast_id":123456,
-            "success":1,
-            "failure":0,
-            "canonical_ids":0,
-            "results":[{"message_id":"0:abc123"}]
+            "multicast_id": 123456,
+            "success": 1,
+            "failure": 0,
+            "canonical_ids": 0,
+            "results": [{"message_id": "0:abc123"}]
         }
 
         dummyResponse = requests.Response()
@@ -449,25 +428,27 @@ class MeerkatHermesTestCase(unittest.TestCase):
             {"message": self.message['message']},
             "to": "/topics/demo"}
 
-        call_headers={
+        call_headers = {
             'Content-Type': 'application/json',
-            'Authorization': 'key='+app.config['GCM_AUTHENTICATION_KEY']}
+            'Authorization': 'key='+app.config['GCM_AUTHENTICATION_KEY']
+        }
 
         self.assertTrue(request_mock.called)
-        request_mock.assert_called_with('https://gcm-http.googleapis.com/gcm/send',
+        request_mock.assert_called_with(
+            'https://gcm-http.googleapis.com/gcm/send',
             data=json.dumps(call_data),
-            headers=call_headers)
+            headers=call_headers
+        )
 
         self.assertEquals(put_response['success'], 1)
 
         # Check that the message has been logged properly.
-        log_response = self.log.get_item(
-            Key={
-                'id': put_response['log_id']
-            }
+        log_response = app.db.read(
+            app.config['LOG'],
+            {'id': put_response['log_id']}
         )
         print(str(log_response))
-        self.assertEquals(log_response['Item']['destination'], gcm['destination'])
+        self.assertEquals(log_response['destination'], gcm['destination'])
 
         # Delete the message from the log
         self.app.delete('/log/' + put_response['log_id'])
@@ -475,6 +456,19 @@ class MeerkatHermesTestCase(unittest.TestCase):
     @mock.patch('meerkat_hermes.util.boto3.client')
     def test_publish_resource(self, boto_mock):
         """Test the Publish resource PUT method."""
+
+        def get_all_effect(table, conditions={}, attributes=[]):
+            return_items = []
+            for item in self.db_data[table].values():
+                print(item)
+                for field, values in conditions.items():
+                    if set(values) & set(list(item[field])):
+                        return_items.append(item)
+                        break
+            print([(s['id'], s['topics']) for s in return_items])
+            return return_items
+
+        app.db.get_all.side_effect = get_all_effect
 
         def clones(object, times=None):
             # Generator to yield clones of an object, infitnely or <n times.
@@ -486,7 +480,7 @@ class MeerkatHermesTestCase(unittest.TestCase):
                 for i in range(times):
                     yield copy.copy(object)
 
-        # Createfour test subscribers, each with subscriptions to a different
+        # Create four test subscribers, each with subscriptions to a different
         # list of topics.
         topic_lists = [
             ['Test1', 'Test2'],

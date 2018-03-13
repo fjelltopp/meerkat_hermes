@@ -5,25 +5,15 @@ and storing verify codes (one at a time) that can be used to verify any
 communication medium. It is also used after a subscriber's details have been
 verified, to make their subscriptions active.
 """
-import boto3
 import json
 from flask_restful import Resource, reqparse
-from flask import current_app, Response
-from meerkat_hermes import authorise
+from flask import Response
+from meerkat_hermes import authorise, app
 
 
 class Verify(Resource):
 
     decorators = [authorise]
-
-    def __init__(self):
-        # Load the database and tables, upon object creation.
-        db = boto3.resource(
-            'dynamodb',
-            endpoint_url=current_app.config['DB_URL'],
-            region_name='eu-west-1'
-        )
-        self.subscribers = db.Table(current_app.config['SUBSCRIBERS'])
 
     def put(self):
         """
@@ -51,20 +41,14 @@ class Verify(Resource):
         args = parser.parse_args()
 
         # Update the subscriber's verified field with the new verify code.
-        response = self.subscribers.update_item(
-            Key={
-                'id': args['subscriber_id']
-            },
-            AttributeUpdates={
-                'code': {
-                    'Value': args['code']
-                }
-            }
+        response = app.db.write(
+            app.config['SUBSCRIBERS'],
+            {'id': args['subscriber_id']},
+            {'code': args['code']}
         )
-
-        return Response(json.dumps(response),
-                        status=response['ResponseMetadata']['HTTPStatusCode'],
-                        mimetype='application/json')
+        if not response:
+            response = {'message': 'Verification code created'}
+        return Response(json.dumps(response), mimetype='application/json')
 
     def post(self):
         """
@@ -91,23 +75,17 @@ class Verify(Resource):
         args = parser.parse_args()
 
         # Get the stored verify code.
-        response = self.subscribers.get_item(
-            Key={
-                'id': args['subscriber_id']
-            },
-            AttributesToGet=[
-                'code'
-            ]
+        response = app.db.read(
+            app.config['SUBSCRIBERS'],
+            {'id': args['subscriber_id']},
+            ['code']
         )
-
-        if 'code' in response['Item']:
+        print(response)
+        if 'code' in response:
             message = {'matched': False}
-            if response['Item']['code'] == args['code']:
+            if response['code'] == args['code']:
                 message['matched'] = True
-            return Response(json.dumps(message),
-                            status=response['ResponseMetadata'][
-                                'HTTPStatusCode'],
-                            mimetype='application/json')
+            return Response(json.dumps(message), mimetype='application/json')
         else:
             return Response(
                 json.dumps({
@@ -130,27 +108,18 @@ class Verify(Resource):
         """
 
         # Get subscriber details.
-        subscriber = self.subscribers.get_item(
-            Key={
-                'id': subscriber_id
-            }
+        subscriber = app.db.read(
+            app.config['SUBSCRIBERS'],
+            {'id': subscriber_id}
         )
 
-        if not subscriber['Item']['verified']:
+        if not subscriber['verified']:
 
             # Update the verified field and delete the code attribute.
-            self.subscribers.update_item(
-                Key={
-                    'id': subscriber_id
-                },
-                AttributeUpdates={
-                    'verified': {
-                        'Value': True
-                    },
-                    'code': {
-                        'Action': 'DELETE'
-                    }
-                }
+            app.db.write(
+                app.config['SUBSCRIBERS'],
+                {'id': subscriber_id},
+                {'verified':  True, 'code': None}
             )
 
             return Response(

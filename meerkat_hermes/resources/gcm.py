@@ -5,9 +5,9 @@ given e-mail addresses.
 from flask_restful import Resource, reqparse
 import uuid
 import json
-from flask import current_app, Response
+from flask import Response
 import meerkat_hermes.util as util
-from meerkat_hermes import authorise
+from meerkat_hermes import app, authorise
 
 
 class Gcm(Resource):
@@ -41,7 +41,7 @@ class Gcm(Resource):
         # If the request is a topic, check that the topic is allowed
         destination = args['destination']
         if destination.startswith('/topics/'):
-            if destination not in current_app.config['GCM_ALLOWED_TOPICS']:
+            if destination not in app.config['GCM_ALLOWED_TOPICS']:
                 return Response(
                     json.dumps({'message': ('Topic ' + args['destination'] +
                                             ' not allowed')}),
@@ -50,7 +50,7 @@ class Gcm(Resource):
                 )
 
         # Return dummy response based on environment variable
-        if current_app.config['GCM_MOCK_RESPONSE_ONLY'] == 1:
+        if app.config['GCM_MOCK_RESPONSE_ONLY'] == 1:
             return Response(
                 json.dumps({'message': 'Mock response from Hermes GCM API',
                             'destination': args['destination'],

@@ -2,25 +2,15 @@
 This class enables management of the message log.  It includes methods to get
 the entire log or to get a single
 """
-import boto3
 import json
 from flask_restful import Resource
-from flask import Response, current_app
-from meerkat_hermes import authorise
+from flask import Response
+from meerkat_hermes import authorise, app
 
 
 class Log(Resource):
 
     decorators = [authorise]
-
-    def __init__(self):
-        # Load the database and tables, upon object creation.
-        db = boto3.resource(
-            'dynamodb',
-            endpoint_url=current_app.config['DB_URL'],
-            region_name='eu-west-1'
-        )
-        self.log = db.Table(current_app.config['LOG'])
 
     def get(self, log_id):
         """
@@ -30,23 +20,21 @@ class Log(Resource):
              log_id (str): The id of the desired message log.
 
         Returns:
-             The amazon dynamodb response.
+             The db response if there is one.
         """
 
-        response = self.log.get_item(
-            Key={
-                'id': log_id
-            }
+        response = app.db.read(
+            app.config['LOG'],
+            {'id': log_id}
         )
-        if 'Item' in response:
-            return Response(json.dumps(response),
-                            status=200,
-                            mimetype="application/json")
+        if response:
+            return Response(json.dumps(response), mimetype="application/json")
         else:
-            message = {"message": "400 Bad Request: log_id doesn't exist"}
-            return Response(json.dumps(message),
-                            status=200,
-                            mimetype="application/json")
+            return Response(
+                json.dumps({"message": "400 Bad Request: log_id doesn't exist"}),
+                status=400,
+                mimetype="application/json"
+            )
 
     def delete(self, log_id):
         """
@@ -56,17 +44,10 @@ class Log(Resource):
              log_id (str): for the record to be deleted.
 
         Returns:
-             The amazon dynamodb response.
+             The db response if there is one.
         """
 
-        log_response = self.log.delete_item(
-            Key={
-                'id': log_id
-            }
-        )
-
         return Response(
-            json.dumps(log_response),
-            status=log_response['ResponseMetadata']['HTTPStatusCode'],
+            json.dumps(app.db.delete(app.config['LOG'], {'id': log_id})),
             mimetype='application/json'
         )

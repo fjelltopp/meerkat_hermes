@@ -4,11 +4,10 @@ subscribers with subscriptions to given topics. It is expected to be the
 primary function of meerkat hermes.
 """
 from flask_restful import Resource, reqparse
-from flask import current_app, Response
-from meerkat_hermes import authorise, logger
+from flask import Response
+from meerkat_hermes import authorise, logger, app
 import meerkat_hermes.util as util
 import json
-import boto3
 
 
 class Publish(Resource):
@@ -67,13 +66,13 @@ class Publish(Resource):
         args = parser.parse_args()
 
         # Log previous times the publish function has been called
-        logger.debug(current_app.config['CALL_TIMES'])
+        logger.debug(app.config['CALL_TIMES'])
 
         # Check whether the rate limit has been exceeded.
         if util.limit_exceeded():
             # Log the issue.
             logger.error("Rate limit exceeded.\n{}".format(
-                current_app.config['CALL_TIMES']
+                app.config['CALL_TIMES']
             ))
             # If limit exceeded, send 503 Service Unavailable error.
             message = {
@@ -86,7 +85,7 @@ class Publish(Resource):
                 'message': ('The hermes messaging rate limit has been '
                             'exceeded. There have been {} attempts to publish '
                             'in the last hour. '.format(
-                                len(current_app.config['CALL_TIMES'])
+                                len(app.config['CALL_TIMES'])
                             )),
                 'medium': ['slack', 'email', 'sms']
             })
@@ -118,7 +117,7 @@ class Publish(Resource):
         if not args['sms-message']:
             args['sms-message'] = args['message']
         if not args['from']:
-            args['from'] = current_app.config['SENDER']
+            args['from'] = app.config['SENDER']
 
         # Assuming everything is fine publish the message.
         responses = util.publish(args)
@@ -132,15 +131,6 @@ class Publish(Resource):
 class Notify(Resource):
 
     decorators = [authorise]
-
-    def __init__(self):
-        # Load the database and tables, upon object creation.
-        db = boto3.resource(
-            'dynamodb',
-            endpoint_url=current_app.config['DB_URL'],
-            region_name='eu-west-1'
-        )
-        self.subscribers = db.Table(current_app.config['SUBSCRIBERS'])
 
     def get(self):
         """
@@ -219,15 +209,6 @@ class Notify(Resource):
 class Error(Resource):
 
     decorators = [authorise]
-
-    def __init__(self):
-        # Load the database and tables, upon object creation.
-        db = boto3.resource(
-            'dynamodb',
-            endpoint_url=current_app.config['DB_URL'],
-            region_name='eu-west-1'
-        )
-        self.subscribers = db.Table(current_app.config['SUBSCRIBERS'])
 
     def put(self):
         """

@@ -1,4 +1,4 @@
-from meerkat_hermes import app, logger, db
+from meerkat_hermes import app, logger
 from flask import Response
 from datetime import datetime, timedelta
 import uuid
@@ -77,7 +77,7 @@ def subscribe(first_name, last_name, email,
         subscriber['verified'] = verified
 
     # Write the subscriber to the database.
-    response = db.write(
+    response = app.db.write(
         app.config['SUBSCRIBERS'],
         {'id': subscriber_id},
         subscriber
@@ -194,22 +194,13 @@ def log_message(messageID, details):
     Returns:
         The Amazon DynamoDB response.
     """
-    db = boto3.resource(
-        'dynamodb',
-        endpoint_url=app.config['DB_URL'],
-        region_name='eu-west-1'
-    )
-    table = db.Table(app.config['LOG'])
-
     details['id'] = messageID
-
     # If the paramaeters are too large, it can cause problems.
     try:
-        response = table.put_item(Item=details)
+        response = app.db.write(app.config['LOG'], {'id': messageID}, details)
     except Exception:
         details['message'] = 'Message too large to log.'
-        response = table.put_item(Item=details)
-
+        response = app.db.write(app.config['LOG'], {'id': messageID}, details)
     return response, 200
 
 
@@ -273,19 +264,9 @@ def id_valid(messageID):
     Returns:
         True for a valid message ID, False for one that has already been logged.
     """
-    db = boto3.resource(
-        'dynamodb',
-        endpoint_url=app.config['DB_URL'],
-        region_name='eu-west-1'
-    )
-    table = db.Table(app.config['LOG'])
-    response = table.get_item(
-        Key={
-            'id': messageID
-        }
-    )
+    response = app.db.read(app.config['LOG'], {'id': messageID})
 
-    if 'Item' in response:
+    if response:
         return False
     else:
         return True
@@ -322,7 +303,7 @@ def delete_subscriber(subscriber_id):
          The amazon dynamodb response.
     """
     try:
-        db.delete(
+        app.db.delete(
             app.config['SUBSCRIBERS'],
             {'id': subscriber_id}
         )
@@ -381,41 +362,19 @@ def publish(args):
     if not args.get('from', ''):
         args['from'] = app.config['SENDER']
 
-    # Load the database.
-    db = boto3.resource(
-        'dynamodb',
-        endpoint_url=app.config['DB_URL'],
-        region_name='eu-west-1'
-    )
-    subscribers_table = db.Table(app.config['SUBSCRIBERS'])
-
-    # Identify those subscribed to the given topics.
-    subscribers = {}
-    kwargs = {}
-    # Load data separately for each country - Scan can't perform OR on CONTAINS
-    for topic in args['topics']:
-        kwargs["ScanFilter"] = {
-            'topics': {
-                'AttributeValueList': [topic],
-                'ComparisonOperator': 'CONTAINS'
-            },
-            'verified': {
-                'AttributeValueList': [True],
-                'ComparisonOperator': 'EQ'
-            }
-        }
-        # Get and combine the users together in a no-duplications dict.
-        for subscriber in subscribers_table.scan(**kwargs).get("Items", []):
-            subscribers[subscriber["id"]] = subscriber
-
-    print('SUBSCRIBERS: ' + str(subscribers))
+    # Get verfied accounts subscribed to the specified topics.
+    subscribers = filter(lambda x: x['verified'], app.db.get_all(
+        app.config['SUBSCRIBERS'],
+        {'topics': args['topics']}
+    ))
+    print('\nSUBSCRIBERS: ' + str(subscribers))
 
     # Record details about the sent messages.
     responses = []
     destinations = []
 
     # Send the messages to each subscriber.
-    for subscriber_id, subscriber in subscribers.items():
+    for subscriber in subscribers:
 
         # Create some variables to hold the mailmerged messages.
         message = args['message']
