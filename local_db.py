@@ -17,7 +17,7 @@ steps in the above order.
 You can run these commands inside the docker container if there are database
 issues.
 """
-from meerkat_hermes import app, db
+from meerkat_hermes import app
 from meerkat_hermes import util
 import os
 import ast
@@ -55,11 +55,11 @@ if all(arg is False for arg in args_dict.values()):
 
 # Clear the database
 if args.clear:
-    db.drop()
+    app.db.drop()
 
 # Create the db tables required and perform any other db setup.
 if args.setup:
-    db.setup()
+    app.db.setup()
 
 # Put initial fake data into the database.
 if args.populate:
@@ -97,7 +97,7 @@ if args.list:
     print('Listing data in the database.')
     try:
         # List subscribers.
-        subscribers = db.get_all(app.config['SUBSCRIBERS'])
+        subscribers = app.db.get_all(app.config['SUBSCRIBERS'])
         if subscribers:
             print("Subscribers created:")
             for subscriber in subscribers:
@@ -111,7 +111,7 @@ if args.list:
             print("No subscribers exist.")
 
         # List log.
-        log = db.get_all(app.config['LOG'])
+        log = app.db.get_all(app.config['LOG'])
         if log:
             print("Log created:")
             print(log)

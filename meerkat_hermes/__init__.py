@@ -9,7 +9,6 @@ from raven.contrib.flask import Sentry
 from functools import wraps
 from meerkat_libs.auth_client import auth
 from meerkat_libs import db_adapters
-import boto3
 import logging
 import os
 
@@ -39,7 +38,7 @@ api = Api(app)
 # The DB is interfaced through an adapter determined by configs.
 DBAdapter = getattr(db_adapters, app.config['DB_ADAPTER'])
 db_configs = app.config['DB_ADAPTER_CONFIGS'][app.config['DB_ADAPTER']]
-db = DBAdapter(**db_configs)
+app.db = DBAdapter(**db_configs)
 
 # Set up sentry error monitoring
 if app.config["SENTRY_DNS"]:
@@ -101,19 +100,9 @@ api.add_resource(Log, "/log/<string:log_id>")
 api.add_resource(Verify, "/verify", "/verify/<string:subscriber_id>")
 api.add_resource(Unsubscribe, "/unsubscribe/<string:subscriber_id>")
 
-
-# display something at /
 @app.route('/')
 def hello_world():
     """
     Display something at /.
-    This method loads a dynamodb table and displays its creation date.
     """
-    logging.warning("Index called")
-    db = boto3.resource(
-        'dynamodb',
-        endpoint_url=app.config['DB_URL'],
-        region_name='eu-west-1'
-    )
-    table = db.Table(app.config['SUBSCRIBERS'])
-    return table.creation_date_time.strftime('%d/%m/%Y')
+    return "Meerkat Hermes Messaging RestAPI"
