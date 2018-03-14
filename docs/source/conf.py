@@ -15,7 +15,7 @@
 
 import sys
 from unittest.mock import MagicMock
-
+import importlib
 # -- Mock Modules --------------------------------------------------------------
 
 # If the module can't be installed in read the docs easily, you should add it to
@@ -32,8 +32,11 @@ class Mock(MagicMock):
 
 
 def mock_modules():
-    sys.modules.update((mod_name, Mock()) for mod_name in MOCK_MODULES)
-
+    for mod_name in MOCK_MODULES:
+        try:
+            mod = importlib.import_module(mod_name)
+        except:
+            sys.modules.update({mod_name: Mock()})
 
 mock_modules()
 
