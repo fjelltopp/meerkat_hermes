@@ -39,6 +39,7 @@ api = Api(app)
 DBAdapter = getattr(db_adapters, app.config['DB_ADAPTER'])
 db_configs = app.config['DB_ADAPTER_CONFIGS'][app.config['DB_ADAPTER']]
 app.db = DBAdapter(**db_configs)
+app.db.connect_to_db()
 
 # Set up sentry error monitoring
 if app.config["SENTRY_DNS"]:

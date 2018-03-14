@@ -16,7 +16,6 @@ class Config(object):
     SUBSCRIBERS = 'hermes_subscribers'
     LOG = 'hermes_log'
 
-    DB_URL = os.environ.get("DB_URL", "http://dynamodb:8000")
     ROOT_URL = os.environ.get("MEERKAT_HERMES_ROOT", "/hermes")
 
     SENTRY_DNS = os.environ.get('SENTRY_DNS', '')
@@ -47,13 +46,19 @@ class Config(object):
     LOGGING_FORMAT = '%(levelname)s - %(message)s'
 
     # DB Adapters from meerkat libs enable us to use different dbs.
+    POSTGRESQL_DSN = os.environ.get(
+        "MEERKAT_POSTGRESQL_DSN",
+        "host='db' dbname='meerkat_auth' user='postgres'"
+    )
+    POSTGRESQL_ROOT_DSN = os.environ.get(
+        "MEERKAT_POSTGRESQL_DSN",
+        "host='db' dbname='postgres' user='postgres'"
+    )
+    DYNAMODB_URL = os.environ.get("DB_URL", "http://dynamodb:8000")
     DB_ADAPTER = os.environ.get("MEERKAT_DB_ADAPTER", "DynamoDBAdapter")
     DB_ADAPTER_CONFIGS = {
         "DynamoDBAdapter": {
-            'db_url': os.environ.get(
-                "DB_URL",
-                "https://dynamodb.eu-west-1.amazonaws.com"
-            ),
+            'db_url': DYNAMODB_URL,
             "structure": {
                 SUBSCRIBERS: {
                     "TableName": SUBSCRIBERS,
@@ -106,7 +111,8 @@ class Config(object):
             }
         },
         'PostgreSQLAdapter': {
-            'db_name': 'meerkat_hermes',
+            'connection_dsn': POSTGRESQL_DSN,
+            'root_connection_dsn': POSTGRESQL_ROOT_DSN,
             'structure': {
                 SUBSCRIBERS: [
                     ("id", sql.SQL("id VARCHAR(50) PRIMARY KEY")),
