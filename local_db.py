@@ -55,7 +55,7 @@ if all(arg is False for arg in args_dict.values()):
 
 # Clear the database
 if args.clear:
-    app.db.drop()
+    app.db.drop_all_tables()
 
 # Create the db tables required and perform any other db setup.
 if args.setup:
