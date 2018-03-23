@@ -110,13 +110,13 @@ def send_email(destination, subject, message, html, sender):
         object that contains the failiure error message.
     """
 
-    if app.config.EMAIL_BACKEND == "SES":
+    if app.config['EMAIL_BACKEND'] == "SES":
         result = send_email_ses(destination, subject, message, html, sender)
-    elif app.config.EMAIL_BACKEND == "SMTP":
+    elif app.config['EMAIL_BACKEND'] == "SMTP":
         result = send_email_smtp(destination, subject, message, html, sender)
     return result
 
-    
+
 def send_email_smtp(destination, subject, message, html, sender):
     """
     Sends an email using an SMTP server.
@@ -147,10 +147,10 @@ def send_email_smtp(destination, subject, message, html, sender):
 
     # Send email using SMTPlib
     try:
-        with SMTP(host=app.config.SMTP_SERVER_ADDRESS) as smtp:
+        with SMTP(host=app.config['SMTP_SERVER_ADDRESS']) as smtp:
             smtp.sendmail(sender, destination, msg.as_string())
         return {"ResponseMetadata": {"HTTPStatusCode": 200}}
-    
+
     except Exception as e:
         msg = "Failed to send email \"{}\" to: {}{}".format(
             subject,
@@ -159,7 +159,7 @@ def send_email_smtp(destination, subject, message, html, sender):
         )
         logger.error(msg)
         return {'ResponseMetadata': {'error': msg, 'HTTPStatusCode': 400}}
-    
+
 
 def send_email_ses(destination, subject, message, html, sender):
     """
