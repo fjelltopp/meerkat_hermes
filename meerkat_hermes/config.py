@@ -16,6 +16,13 @@ class Config(object):
     SUBSCRIBERS = 'hermes_subscribers'
     LOG = 'hermes_log'
 
+<<<<<<< f053590a526842e6dcfe2238ed10eaae84121c2b
+=======
+    EMAIL_BACKEND = os.environ.get("EMAIL_BACKEND", "SES")
+    SMTP_SERVER_ADDRESS = os.environ.get("SMTP_SERVER_ADDRESS", "")
+    
+    DB_URL = os.environ.get("DB_URL", "http://dynamodb:8000")
+>>>>>>> basic smtp functionality
     ROOT_URL = os.environ.get("MEERKAT_HERMES_ROOT", "/hermes")
 
     SENTRY_DNS = os.environ.get('SENTRY_DNS', '')

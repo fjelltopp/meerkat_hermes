@@ -6,6 +6,9 @@ import boto3
 import time
 import json
 import requests
+from smtplib import SMTP
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 
 
 def slack(channel, message, subject=''):
@@ -90,6 +93,75 @@ def subscribe(first_name, last_name, email,
 
 
 def send_email(destination, subject, message, html, sender):
+    """
+    Sends and email using the configured email backend
+
+    Args:
+        destination ([str]): Required. The email address to send to.
+        subject (str): Required. The email subject.
+        message (str): Required. The message to be sent.
+        html (str): The html version of the message to be sent. Defaults to \
+            the same as 'message'.
+        sender (str): The sender's address. Must be an AWS SES verified email \
+            address. Defaults to the config file SENDER value.
+
+    Returns:
+        The email response. If email fails, returns a response look-a-like
+        object that contains the failiure error message.
+    """
+
+    if app.config.EMAIL_BACKEND == "SES":
+        result = send_email_ses(destination, subject, message, html, sender)
+    elif app.config.EMAIL_BACKEND == "SMTP":
+        result = send_email_smtp(destination, subject, message, html, sender)
+    return result
+
+    
+def send_email_smtp(destination, subject, message, html, sender):
+    """
+    Sends an email using an SMTP server.
+
+    Args:
+        destination ([str]): Required. The email address to send to.
+        subject (str): Required. The email subject.
+        message (str): Required. The message to be sent.
+        html (str): The html version of the message to be sent. Defaults to \
+            the same as 'message'.
+        sender (str): The sender's address. Must be an AWS SES verified email \
+            address. Defaults to the config file SENDER value.
+
+    Returns:
+        An Amazon SES like response. If email fails, returns a response look-a-like
+        object that contains the failiure error message.
+    """
+
+    # Assemble a MIME multipart message with both plain text and html
+    msg = MIMEMultipart('alternative')
+    msg['Subject'] = subject
+    msg['From'] = sender
+    msg['To'] = destination
+    plain_part = MIMEText(message, 'plain')
+    html_part = MIMEText(html, 'html')
+    msg.attach(plain_part)
+    msg.attach(html_part)
+
+    # Send email using SMTPlib
+    try:
+        with SMTP(host=app.config.SMTP_SERVER_ADDRESS) as smtp:
+            smtp.sendmail(sender, destination, msg.as_string())
+        return {"ResponseMetadata": {"HTTPStatusCode": 200}}
+    
+    except Exception as e:
+        msg = "Failed to send email \"{}\" to: {}{}".format(
+            subject,
+            destination,
+            e
+        )
+        logger.error(msg)
+        return {'ResponseMetadata': {'error': msg, 'HTTPStatusCode': 400}}
+    
+
+def send_email_ses(destination, subject, message, html, sender):
     """
     Sends an email using Amazon SES.
 
