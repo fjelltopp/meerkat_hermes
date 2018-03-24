@@ -11,6 +11,7 @@ import boto3
 import time
 import json
 import requests
+import base64
 
 
 def slack(channel, message, subject=''):
@@ -138,6 +139,7 @@ def send_email_exchange(destination, subject, message, html, sender):
         Nothing on success.  If email fails, returns a response
         look-a-like object that contains the failiure error message.
     """
+
     try:
         credentials = Credentials(
             username=app.config['EXCHANGE_USERNAME'],
@@ -352,6 +354,24 @@ def limit_exceeded():
 
 def send_sms(destination, message):
     """
+    Sends an sms message using the configured back end.
+
+    Args:
+        destination (str): Required. The sms number to send to.
+        message (str): Required. The message to be sent.
+
+    Returns:
+        The SMS API response.
+    """
+    if app.config['SMS_BACKEND'] == "SNS":
+        result = send_sms_sns(destination, message)
+    elif app.config['SMS_BACKEND'] == "ARABIA":
+        result = send_sms_arabia(destination, message)
+    return result
+
+
+def send_sms_sns(destination, message):
+    """
     Sends an sms message using AWS SNS.
 
     Args:
@@ -374,6 +394,35 @@ def send_sms(destination, message):
         }
     )
     return response
+
+
+def send_sms_arabia(destination, message):
+    """
+    Sends an sms message using the Arabia Cell SMS API.
+    This function is primarily for jordan.
+
+    Args:
+        destination (str): Required. The sms number to send to.
+        message (str): Required. The message to be sent.
+
+    Returns:
+        The SMS API response.
+    """
+    payload = {
+        'mobile_number': destination,
+        'msg': message,
+        'from': app.config['FROM'],
+        'tag': 3,
+    }
+    url = 'https://bulksms.arabiacell.net/index.php/api/send_sms/send'
+    credentials = "{}:{}".format(
+        app.config['ARABIA_USERNAME'],
+        app.config['ARABIA_PASSWORD']
+    ).encode('UTF-8')
+    b64_credentials = base64.b64encode(credentials).decode('UTF-8')
+    headers = {'Authorization': 'Basic {}'.format(b64_credentials)}
+    response = requests.post(url, data=payload, headers=headers)
+    return {'message': response.content.decode('UTF-8')}
 
 
 def get_date():

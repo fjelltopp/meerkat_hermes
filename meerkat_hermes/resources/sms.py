@@ -41,6 +41,7 @@ class Sms(Resource):
             args['sms'],
             args['message']
         )
+        response = {} if not response else response
 
         # Log the message
         message_id = 'G' + uuid.uuid4().hex

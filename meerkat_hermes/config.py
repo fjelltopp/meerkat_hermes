@@ -16,29 +16,23 @@ class Config(object):
     SUBSCRIBERS = 'hermes_subscribers'
     LOG = 'hermes_log'
 
-<<<<<<< 72abdbc34da0b76b02322fd63b427c509a333789
-<<<<<<< f053590a526842e6dcfe2238ed10eaae84121c2b
-=======
-    EMAIL_BACKEND = os.environ.get("EMAIL_BACKEND", "SES")
-    SMTP_SERVER_ADDRESS = os.environ.get("SMTP_SERVER_ADDRESS", "")
-    
-=======
->>>>>>> Exchange server emails.
     DB_URL = os.environ.get("DB_URL", "http://dynamodb:8000")
->>>>>>> basic smtp functionality
     ROOT_URL = os.environ.get("MEERKAT_HERMES_ROOT", "/hermes")
 
     SENTRY_DNS = os.environ.get('SENTRY_DNS', '')
 
     SENDER = 'Notifications <notifications@emro.info>'
     CHARSET = 'UTF-8'
-    FROM = 'Meerkat'
 
     PUBLISH_RATE_LIMIT = int(os.environ.get("MESSAGE RATE LIMIT", "40"))
     CALL_TIMES = []
 
     NEXMO_PUBLIC_KEY = ''
     NEXMO_PRIVATE_KEY = ''
+    FROM = os.environ.get('MEERKAT_SMS_FROM', 'Meerkat')
+    SMS_BACKEND = os.environ.get("MEERKAT_SMS_BACKEND", "SNS")
+    ARABIA_USERNAME = os.environ.get("MEERKAT_ARABIA_USERNAME", "")
+    ARABIA_PASSWORD = os.environ.get("MEERKAT_ARABIA_PASSWORD", "")
 
     ERROR_REPORTING = ['error-reporting']
     NOTIFY_DEV = ['notify-dev']
