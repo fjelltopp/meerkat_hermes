@@ -16,11 +16,14 @@ class Config(object):
     SUBSCRIBERS = 'hermes_subscribers'
     LOG = 'hermes_log'
 
+<<<<<<< 72abdbc34da0b76b02322fd63b427c509a333789
 <<<<<<< f053590a526842e6dcfe2238ed10eaae84121c2b
 =======
     EMAIL_BACKEND = os.environ.get("EMAIL_BACKEND", "SES")
     SMTP_SERVER_ADDRESS = os.environ.get("SMTP_SERVER_ADDRESS", "")
     
+=======
+>>>>>>> Exchange server emails.
     DB_URL = os.environ.get("DB_URL", "http://dynamodb:8000")
 >>>>>>> basic smtp functionality
     ROOT_URL = os.environ.get("MEERKAT_HERMES_ROOT", "/hermes")
@@ -39,6 +42,14 @@ class Config(object):
 
     ERROR_REPORTING = ['error-reporting']
     NOTIFY_DEV = ['notify-dev']
+
+    EXCHANGE_EMAIL = os.environ.get("MEERKAT_EXCHANGE_EMAIL", "")
+    EXCHANGE_SERVER = os.environ.get("MEERKAT_EXCHANGE_SERVER", "")
+    EXCHANGE_USERNAME = os.environ.get("MEERKAT_EXCHANGE_USERNAME", "")
+    EXCHANGE_PASSWORD = os.environ.get("MEERKAT_EXCHANGE_PASSWORD", "")
+
+    EMAIL_BACKEND = os.environ.get("MEERKAT_EMAIL_BACKEND", "SES")
+    SMTP_SERVER_ADDRESS = os.environ.get("MEERKAT_SMTP_SERVER_ADDRESS", "")
 
     GCM_API_URL = "https://gcm-http.googleapis.com/gcm/send"
     GCM_AUTHENTICATION_KEY = ''

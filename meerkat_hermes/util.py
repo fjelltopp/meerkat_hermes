@@ -1,14 +1,16 @@
 from meerkat_hermes import app, logger
 from flask import Response
 from datetime import datetime, timedelta
+from exchangelib import DELEGATE, Account, Credentials
+from exchangelib import Configuration, Message, Mailbox
+from smtplib import SMTP
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 import uuid
 import boto3
 import time
 import json
 import requests
-from smtplib import SMTP
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
 
 
 def slack(channel, message, subject=''):
@@ -114,7 +116,61 @@ def send_email(destination, subject, message, html, sender):
         result = send_email_ses(destination, subject, message, html, sender)
     elif app.config['EMAIL_BACKEND'] == "SMTP":
         result = send_email_smtp(destination, subject, message, html, sender)
+    elif app.config['EMAIL_BACKEND'] == "EXCHANGE":
+        result = send_email_exchange(destination, subject, message, html, sender)
     return result
+
+
+def send_email_exchange(destination, subject, message, html, sender):
+    """
+    Sends an email using a Microsoft exchange server.
+
+    Args:
+        destination ([str]): Required. The email address to send to.
+        subject (str): Required. The email subject.
+        message (str): Required. The message to be sent.
+        html (str): The html version of the message to be sent. Defaults to \
+            the same as 'message'.
+        sender (str): The sender's address. Must be an AWS SES verified email \
+            address. Defaults to the config file SENDER value.
+
+    Returns:
+        Nothing on success.  If email fails, returns a response
+        look-a-like object that contains the failiure error message.
+    """
+    try:
+        credentials = Credentials(
+            username=app.config['EXCHANGE_USERNAME'],
+            password=app.config['EXCHANGE_PASSWORD'],
+        )
+        config = Configuration(
+            server=app.config['EXCHANGE_SERVER'],
+            credentials=credentials
+        )
+        account = Account(
+            primary_smtp_address=app.config['EXCHANGE_EMAIL'],
+            config=config,
+            autodiscover=False,
+            access_type=DELEGATE
+        )
+        recipients = [Mailbox(email_address=x) for x in destination]
+        m = Message(
+            account=account,
+            folder=account.sent,
+            subject=subject,
+            body=message,
+            to_recipients=recipients
+        )
+        m.send_and_save()
+
+    except Exception as e:
+        msg = "Failed to send email \"{}\" to: {}{}".format(
+            subject,
+            destination,
+            e
+        )
+        logger.error(msg)
+        return {'ResponseMetadata': {'error': msg, 'HTTPStatusCode': 400}}
 
 
 def send_email_smtp(destination, subject, message, html, sender):
