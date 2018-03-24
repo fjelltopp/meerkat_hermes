@@ -11,3 +11,4 @@ raven[flask]==6.0.0
 sphinx==1.6.7
 sphinxcontrib-httpdomain==1.6.0
 sphinxcontrib-napoleon==0.6.1
+exchangelib==1.10.7
