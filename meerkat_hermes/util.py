@@ -1,7 +1,7 @@
 from meerkat_hermes import app, logger
 from flask import Response
 from datetime import datetime, timedelta
-from exchangelib import DELEGATE, Account, Credentials
+from exchangelib import DELEGATE, Account, Credentials, HTMLBody
 from exchangelib import Configuration, Message, Mailbox
 from smtplib import SMTP
 from email.mime.multipart import MIMEMultipart
@@ -158,7 +158,8 @@ def send_email_exchange(destination, subject, message, html, sender):
             account=account,
             folder=account.sent,
             subject=subject,
-            body=message,
+            text_body=message,
+            body=HTMLBody(html),
             to_recipients=recipients
         )
         m.send_and_save()
