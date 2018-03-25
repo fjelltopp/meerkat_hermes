@@ -131,7 +131,7 @@ class Config(object):
                     ("data",  sql.SQL("data JSONB"))
                 ],
                 LOG: [
-                    ("id", sql.SQL("id VARCHAR(50)")),
+                    ("id", sql.SQL("id VARCHAR(50) PRIMARY KEY")),
                     ("data", sql.SQL("data JSONB"))
                 ]
             }
