@@ -114,7 +114,7 @@ def send_email(destination, subject, message, html, sender):
     """
 
     if(not html):
-        html = message.replace('', '<br />')
+        html = message.replace('\n', '<br />')
 
     if app.config['EMAIL_BACKEND'] == "SES":
         result = send_email_ses(destination, subject, message, html, sender)
