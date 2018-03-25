@@ -113,6 +113,9 @@ def send_email(destination, subject, message, html, sender):
         object that contains the failiure error message.
     """
 
+    if(not html):
+        html = message.replace('', '<br />')
+
     if app.config['EMAIL_BACKEND'] == "SES":
         result = send_email_ses(destination, subject, message, html, sender)
     elif app.config['EMAIL_BACKEND'] == "SMTP":
@@ -141,6 +144,7 @@ def send_email_exchange(destination, subject, message, html, sender):
     """
 
     try:
+
         credentials = Credentials(
             username=app.config['EXCHANGE_USERNAME'],
             password=app.config['EXCHANGE_PASSWORD'],
@@ -240,9 +244,6 @@ def send_email_ses(destination, subject, message, html, sender):
     """
 
     client = boto3.client('ses', region_name='eu-west-1')
-
-    if(not html):
-        html = message.replace('', '<br />')
 
     try:
         response = client.send_email(
