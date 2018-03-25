@@ -98,5 +98,5 @@ class Email(Resource):
         response['log_id'] = message_id
 
         return Response(json.dumps(response),
-                        status=response['ResponseMetadata']['HTTPStatusCode'],
+                        status=200,
                         mimetype='application/json')
