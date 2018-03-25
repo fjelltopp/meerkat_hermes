@@ -165,6 +165,7 @@ def send_email_exchange(destination, subject, message, html, sender):
             to_recipients=recipients
         )
         m.send_and_save()
+        return {'message': 'Email Sent'}
 
     except Exception as e:
         msg = "Failed to send email \"{}\" to: {}{}".format(
