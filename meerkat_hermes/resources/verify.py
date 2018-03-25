@@ -81,9 +81,10 @@ class Verify(Resource):
             ['code']
         )
         print(response)
+        print(args)
         if 'code' in response:
             message = {'matched': False}
-            if response['code'] == args['code']:
+            if str(response['code']) == str(args['code']):
                 message['matched'] = True
             return Response(json.dumps(message), mimetype='application/json')
         else:

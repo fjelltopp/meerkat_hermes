@@ -27,8 +27,7 @@ class Unsubscribe(Resource):
         html = ("<html><head><title>Unsubscribe Confirmation</title></head>"
                 "<body><H2>Unsubscribe Confirmation</H2>"
                 "<p>Are you sure you want to unsubscribe?</p>"
-                "<form action='/unsubscribe/" + subscriber_id +
-                "' method='POST'><input type='submit' value='Confirm'> "
+                "<form method='POST'><input type='submit' value='Confirm'> "
                 "</form> </body> </html>")
 
         return Response(html,
