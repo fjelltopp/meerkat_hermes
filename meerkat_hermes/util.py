@@ -332,7 +332,8 @@ def delete_subscriber(subscriber_id):
     subscribers_response = subscribers.delete_item(
         Key={
             'id': subscriber_id
-        }
+        },
+        ReturnValues='ALL_OLD'
     )
 
     status = 200
@@ -340,7 +341,9 @@ def delete_subscriber(subscriber_id):
                 "successfully unsubscribed.</H2></body</html>")
     mimetype = 'text/html'
 
-    if not subscribers_response['ResponseMetadata']['HTTPStatusCode'] == 200:
+    logger.warning("Delete response " + str(subscribers_response))
+
+    if not subscribers_response.get('Attributes'):
         status = 500
         response = ("{'message':'500 Internal Server "
                     "Error: Unable to complete deletion.'}")
