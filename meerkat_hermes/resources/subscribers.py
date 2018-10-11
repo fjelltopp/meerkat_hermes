@@ -1,13 +1,10 @@
 """
-This class manages a resource that gives access to subscribers in the db".
+This class enables bulk extraction of subscribers details.
 """
-
-from flask_restful import Resource, reqparse
-from flask import Response, current_app
+from flask_restful import Resource
+from flask import current_app
 from meerkat_hermes import authorise
-import meerkat_hermes.util as util
 import boto3
-import json
 import logging
 
 
@@ -33,13 +30,8 @@ class Subscribers(Resource):
             country (string): the deployment that the subscribers should be
                 subscribed toself.
         """
-        logging.warning(country)
         # Query DB for all subscribers belonging to a particular country.
-        subscribers = self.get_all(country, None)
-        # TODO: Format the return data.
-        logging.warning(subscribers)
-        # TODO: Return the data.
-        return subscribers
+        return self.get_all(country, None)
 
     def get_all(self, countries, attributes):
         """
@@ -105,7 +97,9 @@ class Subscribers(Resource):
                     }
                 }
                 logging.warning(kwargs)
-                logging.warning(self.subscribers.scan(**kwargs).get("Items", []))
+                logging.warning(
+                    self.subscribers.scan(**kwargs).get("Items", [])
+                )
 
                 # Get and combine the subscribers together in a no-duplications dict.
                 for subscriber in self.subscribers.scan(**kwargs).get("Items", []):
