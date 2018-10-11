@@ -45,4 +45,22 @@ class Unsubscribe(Resource):
              The amazon dynamodb response.
         """
 
-        return util.delete_subscriber(subscriber_id)
+        delete_response = util.delete_subscriber(subscriber_id)
+
+        status = 200
+        response = (
+            "<html><body><H2>You have been "
+            "successfully unsubscribed.</H2></body</html>"
+        )
+
+        if not delete_response.get('Attributes'):
+            status = 500
+            response = (
+                "<html><body><H2>Failed to unsubscribe you.</H2><H4> Please "
+                "try again or contact the system administrator: "
+                "support@fjelltopp.org</H4></body</html>"
+            )
+
+        return Response(response,
+                        status=status,
+                        mimetype='text/html')
