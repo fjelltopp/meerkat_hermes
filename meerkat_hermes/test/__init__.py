@@ -199,8 +199,15 @@ class MeerkatHermesTestCase(unittest.TestCase):
         )
 
         # Try to delete the subscriber.
+        delete_response = self.app.delete('/subscribe/badID')
+        self.assertEquals(delete_response.status_code, 500)
+        delete_response = json.loads(delete_response.data.decode('UTF-8'))
+        self.assertEquals(delete_response.get('status'), 'unsuccessful')
+
         delete_response = self.app.delete('/subscribe/' + subscriber_id)
         self.assertEquals(delete_response.status_code, 200)
+        delete_response = json.loads(delete_response.data.decode('UTF-8'))
+        self.assertEquals(delete_response.get('status'), 'successful')
 
     def test_verify_resource(self):
         """
