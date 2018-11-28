@@ -30,12 +30,8 @@ if not logger.handlers:
     logger.addHandler(handler)
 logger.info('App loaded with {} config object.'.format(config_object))
 
-# Load any secret settings
-try:
-    app.config.from_envvar('MEERKAT_HERMES_SETTINGS')
-except FileNotFoundError:
-    logger.warning("No secret settings specified.")
 
+app.config.from_envvar('MEERKAT_HERMES_SETTINGS', silent=True)
 api = Api(app)
 
 # Set up sentry error monitoring
