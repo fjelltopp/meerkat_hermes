@@ -69,31 +69,6 @@ class Publish(Resource):
         # Log previous times the publish function has been called
         logger.debug(current_app.config['CALL_TIMES'])
 
-        # Check whether the rate limit has been exceeded.
-        if util.limit_exceeded():
-            # Log the issue.
-            logger.error("Rate limit exceeded.\n{}".format(
-                current_app.config['CALL_TIMES']
-            ))
-            # If limit exceeded, send 503 Service Unavailable error.
-            message = {
-                "message": ("503 Service Unavailable: too many requests " +
-                            "to publish in the past hour. Try again later.")
-            }
-            # Notify the developers of the error
-            util.error({
-                'subject': 'URGENT ERROR - Message Rate Limit Exceeded',
-                'message': ('The hermes messaging rate limit has been '
-                            'exceeded. There have been {} attempts to publish '
-                            'in the last hour. '.format(
-                                len(current_app.config['CALL_TIMES'])
-                            )),
-                'medium': ['slack', 'email', 'sms']
-            })
-            return Response(json.dumps(message),
-                            status=503,
-                            mimetype='application/json')
-
         # Check that the message hasn't already been sent.
         if not util.id_valid(args['id']):
             logger.warning(
@@ -108,6 +83,34 @@ class Publish(Resource):
             }
             return Response(json.dumps(message),
                             status=400,
+                            mimetype='application/json')
+
+        # Check whether the rate limit has been exceeded.
+        if util.limit_exceeded():
+
+            # Log the issue.
+            logger.error("Rate limit exceeded.\n{}".format(
+                current_app.config['CALL_TIMES']
+            ))
+            # If limit exceeded, send 503 Service Unavailable error.
+            message = {
+                "message": ("503 Service Unavailable: too many requests " +
+                            "to publish in the past hour. Try again later.")
+            }
+            # Notify the developers of the error
+            util.error({
+                'subject': 'URGENT ERROR - Message Rate Limit Exceeded',
+                'message': ('The hermes messaging rate limit has been '
+                            'exceeded. There have been {} attempts to publish '
+                            'in the last hour. Message with subject "{}" has '
+                            'been throttled.'.format(
+                                len(current_app.config['CALL_TIMES']),
+                                args['subject']
+                            )),
+                'medium': ['slack', 'email', 'sms']
+            })
+            return Response(json.dumps(message),
+                            status=503,
                             mimetype='application/json')
 
         # Set the default values for the non-required fields.

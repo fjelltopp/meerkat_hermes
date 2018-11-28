@@ -25,7 +25,7 @@ class Config(object):
     CHARSET = 'UTF-8'
     FROM = 'Meerkat'
 
-    PUBLISH_RATE_LIMIT = int(os.environ.get("MESSAGE RATE LIMIT", "40"))
+    PUBLISH_RATE_LIMIT = int(os.environ.get("MESSAGE RATE LIMIT", "75"))
     CALL_TIMES = []
 
     NEXMO_PUBLIC_KEY = ''
