@@ -21,9 +21,12 @@ class Config(object):
 
     SENTRY_DNS = os.environ.get('SENTRY_DNS', '')
 
-    SENDER = 'Notifications <notifications@emro.info>'
     CHARSET = 'UTF-8'
     FROM = 'Meerkat'
+    SENDER = os.environ.get(
+        "MEERKAT_HERMES_SENDER",
+        'Notifications <notifications@emro.info>'
+    )
 
     PUBLISH_RATE_LIMIT = int(os.environ.get("MESSAGE RATE LIMIT", "75"))
     CALL_TIMES = []
