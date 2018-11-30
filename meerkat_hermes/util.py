@@ -513,7 +513,8 @@ def error(args):
     """
     # Set the default values for the non-required fields.
     if not args.get('subject', ''):
-        args['subject'] = 'Meerkat Error'
+        subject = app.config['HERMES_DEPLOYMENT'] + ' Meerkat Error'
+        args['subject'] = subject
     if not args.get('medium', ''):
         args['medium'] = ['email', 'slack']
     if not args.get('html-message', ''):
@@ -549,7 +550,8 @@ def notify(args):
     """
     # Set the default values for the non-required fields.
     if not args.get('subject', ''):
-        args['subject'] = 'Meerkat Notification'
+        subject = app.config['HERMES_DEPLOYMENT'] + ' Meerkat Notification'
+        args['subject'] = subject
     if not args.get('medium', ''):
         args['medium'] = ['slack']
     if not args.get('html-message', ''):

@@ -45,6 +45,7 @@ class Config(object):
     }
     LOGGING_LEVEL = os.environ.get('LOGGING_LEVEL', 'INFO')
     LOGGING_FORMAT = '%(levelname)s - %(message)s'
+    HERMES_DEPLOYMENT = os.environ.get('HERMES_DEPLOYMENT', 'Fjelltopp')
 
 
 class Production(Config):
