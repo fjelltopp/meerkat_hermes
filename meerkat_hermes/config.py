@@ -12,7 +12,7 @@ class Config(object):
     TESTING = False
     PRODUCTION = False
 
-    SUBSCRIBERS = 'test_hermes_subscribers'
+    SUBSCRIBERS = 'hermes_subscribers'
     SUBSCRIPTIONS = 'hermes_subscriptions'
     LOG = 'hermes_log'
 
