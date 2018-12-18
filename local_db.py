@@ -61,7 +61,7 @@ if args.clear:
         endpoint_url='http://dynamodb:8000',
         region_name='eu-west-1'
     )
-    
+
     try:
         print('Cleaning the dev db.')
         response = db.Table(app.config['SUBSCRIBERS']).delete()
@@ -188,9 +188,10 @@ if args.list:
         if subscribers:
             print("Subscribers created:")
             for subscriber in subscribers:
-                print("{} {} - {} {}".format(
+                print("{} {} ({}) - {} {}".format(
                     subscriber['first_name'],
                     subscriber['last_name'],
+                    subscriber['country'],
                     subscriber['email'],
                     subscriber.get('sms', '(no sms)')
                 ))

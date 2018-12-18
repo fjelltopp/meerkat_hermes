@@ -74,6 +74,7 @@ def authorise(f):
 # Import the API resources
 # Import them after creating the app, because they depend upon the app.
 from meerkat_hermes.resources.subscribe import Subscribe
+from meerkat_hermes.resources.subscribers import Subscribers
 from meerkat_hermes.resources.email import Email
 from meerkat_hermes.resources.sms import Sms
 from meerkat_hermes.resources.gcm import Gcm
@@ -84,6 +85,7 @@ from meerkat_hermes.resources.unsubscribe import Unsubscribe
 
 # Add the API  resources.
 api.add_resource(Subscribe, "/subscribe", "/subscribe/<string:subscriber_id>")
+api.add_resource(Subscribers, "/subscribers/<string:country>")
 api.add_resource(Email, "/email")
 api.add_resource(Sms, "/sms")
 api.add_resource(Gcm, "/gcm")

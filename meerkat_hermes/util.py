@@ -332,23 +332,11 @@ def delete_subscriber(subscriber_id):
     subscribers_response = subscribers.delete_item(
         Key={
             'id': subscriber_id
-        }
+        },
+        ReturnValues='ALL_OLD'
     )
 
-    status = 200
-    response = ("<html><body><H2>You have been "
-                "successfully unsubscribed.</H2></body</html>")
-    mimetype = 'text/html'
-
-    if not subscribers_response['ResponseMetadata']['HTTPStatusCode'] == 200:
-        status = 500
-        response = ("{'message':'500 Internal Server "
-                    "Error: Unable to complete deletion.'}")
-        mimetype = 'application/json'
-
-    return Response(response,
-                    status=status,
-                    mimetype=mimetype)
+    return subscribers_response
 
 
 def publish(args):

@@ -178,8 +178,8 @@ class MeerkatHermesTestCase(unittest.TestCase):
         """
         Test the Subscribe resource, including the PUT, GET and DELETE methods.
         """
-        logging.warning(app.config)
-        # Create the test subscriber
+
+        # Create the test subscribers
         put_response = self.app.put('/subscribe', data=self.subscriber)
         self.assertEquals(put_response.status_code, 200)
 
@@ -199,8 +199,51 @@ class MeerkatHermesTestCase(unittest.TestCase):
         )
 
         # Try to delete the subscriber.
+        delete_response = self.app.delete('/subscribe/badID')
+        self.assertEquals(delete_response.status_code, 500)
+        delete_response = json.loads(delete_response.data.decode('UTF-8'))
+        self.assertEquals(delete_response.get('status'), 'unsuccessful')
+
         delete_response = self.app.delete('/subscribe/' + subscriber_id)
         self.assertEquals(delete_response.status_code, 200)
+        delete_response = json.loads(delete_response.data.decode('UTF-8'))
+        self.assertEquals(delete_response.get('status'), 'successful')
+
+    def test_subscribers_resource(self):
+        """
+        Test the Subscribers resource GET method.
+        """
+
+        # Create four test subscribers, each with a specified country
+        countries = ['Madagascar', 'Madagascar', 'Madagascar', 'Jordan']
+        subscriber_ids = []
+
+        for i in range(0, len(countries)):
+            # Create a variation on the test subscriber
+            subscriber = self.subscriber.copy()
+            subscriber['country'] = countries[i]
+            subscriber['first_name'] += str(i)
+            # Add the subscriber to the database.
+            subscribe_response = self.app.put('/subscribe', data=subscriber)
+            subscriber_ids.append(json.loads(
+                subscribe_response.data.decode('UTF-8')
+            )['subscriber_id'])
+
+        # Get all the Madagascar subscribers
+        get_response = self.app.get('/subscribers/Madagascar')
+        get_response = json.loads(get_response.data.decode('UTF-8'))
+        logging.warning(get_response)
+        self.assertEqual(len(get_response), 3)
+
+        # Get all the Jordan subscribers
+        get_response = self.app.get('/subscribers/Jordan')
+        get_response = json.loads(get_response.data.decode('UTF-8'))
+        logging.warning(get_response)
+        self.assertEqual(len(get_response), 1)
+
+        # Delete the test subscribers.
+        for subscriber_id in subscriber_ids:
+            self.app.delete('/subscribe/' + subscriber_id)
 
     def test_verify_resource(self):
         """
