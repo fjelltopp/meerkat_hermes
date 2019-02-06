@@ -28,7 +28,7 @@ class Config(object):
         'Notifications <notifications@emro.info>'
     )
 
-    PUBLISH_RATE_LIMIT = int(os.environ.get("MESSAGE RATE LIMIT", "75"))
+    PUBLISH_RATE_LIMIT = int(os.environ.get("MESSAGE_RATE_LIMIT", "100"))
     CALL_TIMES = []
 
     NEXMO_PUBLIC_KEY = ''
