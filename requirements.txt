@@ -1,6 +1,6 @@
 Flask==1.1.2
 itsdangerous==1.1.0
-Jinja2==2.11.2
+Jinja2==2.11.3
 Werkzeug==1.0.1
 Flask-RESTful==0.3.8
 python-dateutil==2.8.1
@@ -13,3 +13,5 @@ sphinxcontrib-httpdomain==1.7.0
 sphinxcontrib-napoleon==0.7
 uWSGI==2.0.19.1
 blinker==1.4
+pygments>=2.7.4 # not directly required, pinned by Snyk to avoid a vulnerability
+urllib3>=1.26.5 # not directly required, pinned by Snyk to avoid a vulnerability
